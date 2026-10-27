@@ -1,0 +1,11 @@
+@Payment.Api_HostAddress = http://localhost:5087
+
+POST {{Payment.Api_HostAddress}}/api/usuario/login
+Content-Type: application/json
+
+{
+  "email": "usuario@ejemplo.com",
+  "password": "TuPassword123!"
+}
+
+###

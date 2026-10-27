@@ -1,0 +1,69 @@
+ESTRUCTURA DEL PROYECTO
+=======================
+
+Solución: tpProgra3_.slnx (.NET 10)
+
+src/
+  Availability/Availability.Web   Sitio web (ASP.NET Core MVC). Consulta de asientos y solicitud de reserva.
+  Booking/Booking.Api             API REST. Procesa reservas.
+  Payment/Payment.Api             API de cobros.
+
+
+BOOKING.API Y PAYMENT.API
+-------------------------
+Ambas tienen la misma estructura interna:
+
+  Controllers/              Endpoints HTTP (capa de presentación).
+  Core/
+    Entity.cs               Clase base de las entidades: Id, IsDeleted (borrado lógico),
+                            CreatedAt, LastUpdate, DeletedAt.
+    BaseService.cs          Servicio genérico: GetAll, GetById y DeleteById (borrado lógico).
+                            Filtra siempre las entidades con IsDeleted = true.
+    CrudControllerBase.cs   Controlador genérico con GET (lista), GET por id y DELETE.
+                            Usa [Authorize] y caché de salida. Se hereda indicando la entidad.
+    ErrorHandlingMiddleware.cs
+                            Captura excepciones y devuelve un ErrorResponseDTO con el código HTTP.
+    Exceptions/             AppException y derivadas: BadRequest (400), Forbidden (403),
+                            NotFound (404) y Conflict (409). Se lanzan desde servicios y controladores.
+    Interface/IService.cs   Contrato del servicio genérico.
+  Domain/                   Entidades del negocio (hoy vacía).
+  DTOS/                     Objetos de transferencia. Hoy solo ErrorResponseDTO.
+  Infraestructura/Data/
+    AppDbContext.cs         DbContext de Entity Framework Core (SQL Server).
+  Program.cs                Configuración: controladores, OpenAPI/Scalar, validación de JWT,
+                            CORS, caché de salida y base de datos.
+  appsettings.json          Cadena de conexión (DbConexion) y sección Auth.
+
+Cómo agregar una entidad:
+  1. Crear la clase en Domain/ heredando de Entity.
+  2. Agregar el DbSet en AppDbContext.
+  3. Crear un servicio que herede de BaseService<T> y registrarlo en Program.cs.
+  4. Crear un controlador que herede de CrudControllerBase<T>.
+
+Autenticación:
+  Estas APIs no emiten tokens ni gestionan usuarios. Solo validan los JWT del servidor de
+  autorización, configurado en appsettings.json:
+    Auth:Authority   URL del servidor de autorización
+    Auth:Audience    audiencia esperada del token
+  Los valores actuales son de ejemplo y hay que reemplazarlos.
+
+Puertos (Properties/launchSettings.json):
+  Booking: http 5086, https 7153. Payment: http 5087, https 7154.
+  Cada servicio tiene sus propios puertos, así que se pueden ejecutar a la vez.
+
+
+AVAILABILITY.WEB
+----------------
+  Controllers/HomeController.cs   Controlador MVC de ejemplo.
+  Views/                          Vistas Razor y layout compartido.
+  wwwroot/                        Archivos estáticos (css, js, Bootstrap, jQuery).
+  Program.cs                      Configuración de la aplicación.
+
+  Hoy es un único proyecto, sin separación en capas.
+
+
+ESTADO ACTUAL
+-------------
+  - Los tres proyectos compilan.
+  - Todavía no existen las entidades del dominio (Evento, Asiento, Reserva).
+  - No hay comunicación entre servicios ni broker de mensajes.

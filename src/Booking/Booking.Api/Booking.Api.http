@@ -1,0 +1,11 @@
+@Booking.Api_HostAddress = http://localhost:5086
+
+POST {{Booking.Api_HostAddress}}/api/usuario/login
+Content-Type: application/json
+
+{
+  "email": "usuario@ejemplo.com",
+  "password": "TuPassword123!"
+}
+
+###
