@@ -79,3 +79,7 @@ Navbar    Inter Medium
 31. Arma un db seeder tambien con unos eventos y asientos de prueba ¿te parece?
 
 32. (aprobó el plan)
+
+33. Buenas, borra los comentarios que hablan de arabbitMQ y MassTransit, porque el broker es azure service bus.
+
+34. Las carpetas Availability.Domain, Availability.Application y Availability.Infrastructure quedaron en la raíz del repo, y deberían ir dentro de Availability (como Availability.Web)

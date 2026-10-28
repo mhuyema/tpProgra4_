@@ -8,8 +8,7 @@ namespace Availability.Infrastructure.Data
 {
     /// <summary>
     /// Registra las implementaciones de Infrastructure para las interfaces de Application.
-    /// Es el único lugar donde se decide qué tecnología cumple cada contrato:
-    /// cambiar el publicador falso por RabbitMQ es cambiar una línea acá.
+    /// Es el único lugar donde se decide qué tecnología cumple cada contrato.
     /// </summary>
     public static class DependencyInjection
     {
