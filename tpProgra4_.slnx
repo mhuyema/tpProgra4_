@@ -1,5 +1,8 @@
 <Solution>
   <Folder Name="/Availability/">
+    <Project Path="Availability.Application/Availability.Application.csproj" Id="1f33f663-1219-4262-bb3e-7879ec662644" />
+    <Project Path="Availability.Domain/Availability.Domain.csproj" Id="b710392f-ce49-418b-a145-83e7d663c30d" />
+    <Project Path="Availability.Infrastructure/Availability.Infrastructure.csproj" Id="2430f75b-0a77-4c5a-8e73-55b722efd1ed" />
     <Project Path="src/Availability/Availability.Web/Availability.Web.csproj" />
   </Folder>
   <Folder Name="/Booking/">

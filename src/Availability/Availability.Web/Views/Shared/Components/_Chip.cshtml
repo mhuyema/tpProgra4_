@@ -1,0 +1,13 @@
+@using Availability.Web.Models.Components
+@model ChipModel
+@{
+    var css = "bombo-chip" + (Model.Active ? " bombo-chip--active" : "");
+}
+@if (Model.Href is not null)
+{
+    <a href="@Model.Href" class="@css">@Model.Text</a>
+}
+else
+{
+    <button type="button" class="@css">@Model.Text</button>
+}

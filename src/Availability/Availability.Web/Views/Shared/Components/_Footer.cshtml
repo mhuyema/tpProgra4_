@@ -1,0 +1,14 @@
+@using Availability.Web.Models.Components
+@model FooterModel
+<footer class="bombo-footer">
+    <div class="bombo-footer__inner">
+        <span class="bombo-nav__brand">@Model.Brand</span>
+        <ul class="bombo-nav__links">
+            @foreach (var link in Model.Links)
+            {
+                <li><a class="bombo-nav__link" href="@link.Href">@link.Text</a></li>
+            }
+        </ul>
+        <span class="bombo-label-sm">&copy; 2026 @Model.Brand</span>
+    </div>
+</footer>

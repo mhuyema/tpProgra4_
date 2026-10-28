@@ -1,0 +1,19 @@
+@using Availability.Web.Models.Components
+@model HeroModel
+@{
+    var cta = new ButtonModel(Model.CtaText, Model.CtaHref);
+}
+<section class="bombo-hero">
+    <img class="bombo-hero__img" src="@Model.ImageUrl" alt="@Model.Title" />
+    <div class="bombo-hero__shade"></div>
+    <div class="bombo-hero__body">
+        @if (Model.LiveText is not null)
+        {
+            <partial name="Components/_LivePip" model="Model.LiveText" />
+        }
+        <span class="bombo-label-lg bombo-hero__meta">@Model.Meta</span>
+        <h1 class="bombo-headline-xl">@Model.Title</h1>
+        <p class="bombo-body-lg bombo-hero__desc">@Model.Description</p>
+        <div><partial name="Components/_Button" model="cta" /></div>
+    </div>
+</section>

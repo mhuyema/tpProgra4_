@@ -1,0 +1,23 @@
+@using Availability.Web.Models.Components
+@model EventSummaryModel
+<div class="bombo-event-summary">
+    <div class="bombo-event-summary__media">
+        <img src="@Model.ImageUrl" alt="@Model.Title" />
+        <div class="bombo-event-summary__shade"></div>
+        @if (Model.BadgeText is not null)
+        {
+            <div class="bombo-event-summary__badge">
+                <partial name="Components/_Badge" model="new BadgeModel(Model.BadgeText)" />
+            </div>
+        }
+    </div>
+    <div class="bombo-event-summary__body">
+        @if (Model.LiveText is not null)
+        {
+            <partial name="Components/_LivePip" model="Model.LiveText" />
+        }
+        <h2 class="bombo-headline-md">@Model.Title</h2>
+        <span class="bombo-label-md bombo-event-summary__meta">@Model.Meta</span>
+        <span class="bombo-body-sm bombo-event-summary__venue">@Model.Venue</span>
+    </div>
+</div>

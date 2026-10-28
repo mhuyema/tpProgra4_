@@ -1,0 +1,10 @@
+@using Availability.Web.Models.Components
+@model VenueCardModel
+<a href="@Model.Href" class="bombo-venue-card">
+    <img class="bombo-venue-card__img" src="@Model.ImageUrl" alt="@Model.Name" />
+    <div class="bombo-venue-card__shade"></div>
+    <div class="bombo-venue-card__body">
+        <h3 class="bombo-headline-sm">@Model.Name</h3>
+        <span class="bombo-label-md">@Model.Location</span>
+    </div>
+</a>

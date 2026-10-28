@@ -1,0 +1,130 @@
+@using Availability.Web.Models.Components
+@{
+    ViewData["Title"] = "Styleguide";
+
+    // Placeholder de imagen sin dependencias externas
+    const string poster =
+        "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='800'>" +
+        "<defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>" +
+        "<stop offset='0' stop-color='%23c8f250'/><stop offset='0.5' stop-color='%23353534'/>" +
+        "<stop offset='1' stop-color='%23131313'/></linearGradient></defs>" +
+        "<rect width='600' height='800' fill='url(%23g)'/></svg>";
+
+    var m0 = new ButtonModel("Comprar entradas");
+    var m1 = new ButtonModel("Ver detalle", null, ButtonVariant.Secondary);
+    var m2 = new ButtonModel("Como link", "#");
+    var m3 = new ChipModel("Todos", true);
+    var m4 = new ChipModel("Techno");
+    var m5 = new ChipModel("House");
+    var m6 = new ChipModel("Hoy");
+    var m7 = new BadgeModel("Last tickets");
+    var m8 = new BadgeModel("Sold out", true);
+    var m9 = "Venta en vivo";
+    var m10 = new EventCardModel("Warehouse Ritual", "Sáb 12 NOV · Buenos Aires", poster, "#", "Last tickets");
+    var m11 = new EventCardModel("Acid Bunker", "Vie 18 NOV · Córdoba", poster, "#", "Sold out", true);
+    var m12 = new EventCardModel("Sin badge", "Dom 20 NOV · Rosario", poster, "#");
+    var navbar = new NavbarModel("BOMBO", new List<NavLinkModel>
+    {
+        new("Eventos", "Home", "Index"),
+        new("Styleguide", "Styleguide", "Index"),
+        new("Privacy", "Home", "Privacy")
+    });
+}
+
+<style>
+    .sg-section { margin: 3rem 0; }
+    .sg-section > h2 { margin-bottom: 1.25rem; }
+    .sg-row { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; }
+    .sg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
+    .sg-swatch { width: 120px; }
+    .sg-swatch__box { height: 64px; border-radius: var(--radius-default); box-shadow: inset 0 0 0 1px var(--outline); }
+</style>
+
+<div class="py-4">
+    <p class="bombo-label-md" style="color:var(--primary-fixed)">Design system</p>
+    <h1 class="bombo-headline-lg">Componentes BOMBO</h1>
+    <p class="bombo-body-md" style="color:var(--on-surface-variant)">Muestra de los componentes reutilizables y los tokens de <code>entradas_design_system.md</code>.</p>
+
+    <section class="sg-section">
+        <h2 class="bombo-headline-sm">Colores</h2>
+        <div class="sg-row">
+            @foreach (var (name, token) in new[] {
+                ("primary-fixed", "--primary-fixed"), ("on-primary-fixed", "--on-primary-fixed"), ("primary", "--primary"),
+                ("background", "--background"), ("surface-lowest", "--surface-lowest"), ("surface-low", "--surface-low"),
+                ("surface", "--surface"), ("surface-high", "--surface-high"), ("surface-highest", "--surface-highest"),
+                ("on-surface", "--on-surface"), ("on-surface-variant", "--on-surface-variant"), ("secondary", "--secondary"),
+                ("error", "--error"), ("on-error", "--on-error") })
+            {
+                <div class="sg-swatch">
+                    <div class="sg-swatch__box" style="background:var(@token)"></div>
+                    <span class="bombo-label-sm">@name</span>
+                </div>
+            }
+        </div>
+    </section>
+
+    <section class="sg-section">
+        <h2 class="bombo-headline-sm">Tipografía</h2>
+        <p class="bombo-headline-xl">Headline XL</p>
+        <p class="bombo-headline-lg">Headline LG</p>
+        <p class="bombo-headline-md">Headline MD</p>
+        <p class="bombo-headline-sm">Headline SM</p>
+        <p class="bombo-body-lg">Body LG — Inter Regular</p>
+        <p class="bombo-body-md">Body MD — Inter Regular</p>
+        <p class="bombo-body-sm">Body SM — Inter Regular</p>
+        <p class="bombo-label-lg">Label LG — Inter Medium</p>
+        <p class="bombo-label-md">Label MD — Inter Medium</p>
+        <p class="bombo-label-sm">Label SM — Inter Regular</p>
+    </section>
+
+    <section class="sg-section">
+        <h2 class="bombo-headline-sm">Navbar</h2>
+        <partial name="Components/_Navbar" model="navbar" />
+    </section>
+
+    <section class="sg-section">
+        <h2 class="bombo-headline-sm">Botones</h2>
+        <div class="sg-row">
+            <partial name="Components/_Button" model="m0" />
+            <partial name="Components/_Button" model="m1" />
+            <partial name="Components/_Button" model="m2" />
+        </div>
+    </section>
+
+    <section class="sg-section">
+        <h2 class="bombo-headline-sm">Buscador</h2>
+        <partial name="Components/_SearchInput" model="new SearchInputModel()" />
+    </section>
+
+    <section class="sg-section">
+        <h2 class="bombo-headline-sm">Chips</h2>
+        <div class="sg-row">
+            <partial name="Components/_Chip" model="m3" />
+            <partial name="Components/_Chip" model="m4" />
+            <partial name="Components/_Chip" model="m5" />
+            <partial name="Components/_Chip" model="m6" />
+        </div>
+    </section>
+
+    <section class="sg-section">
+        <h2 class="bombo-headline-sm">Badges y live pip</h2>
+        <div class="sg-row">
+            <partial name="Components/_Badge" model="m7" />
+            <partial name="Components/_Badge" model="m8" />
+            <partial name="Components/_LivePip" model="m9" />
+        </div>
+    </section>
+
+    <section class="sg-section">
+        <h2 class="bombo-headline-sm">Tarjetas</h2>
+        <div class="sg-grid">
+            <partial name="Components/_EventCard" model="m10" />
+            <partial name="Components/_EventCard" model="m11" />
+            <partial name="Components/_EventCard" model="m12" />
+            <div class="bombo-card">
+                <h3 class="bombo-headline-sm">Card genérica</h3>
+                <p class="bombo-body-md" style="color:var(--on-surface-variant)">Contenedor <code>bombo-card</code> para bloques de información.</p>
+            </div>
+        </div>
+    </section>
+</div>
