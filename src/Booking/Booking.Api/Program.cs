@@ -1,56 +1,28 @@
+using Booking.Data;
 using Microsoft.EntityFrameworkCore;
-using Booking.Api.Core;
-using Booking.Api.Infraestructura.Data;
-using Scalar.AspNetCore;
+using Booking.Business.Services;
+using Booking.Data.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
-
-// Autenticación: este servicio NO emite tokens, solo valida los que emite el servidor de autorización.
-builder.Services.AddAuthentication().AddJwtBearer(opciones =>
-{
-    opciones.MapInboundClaims = false;
-    opciones.Authority = builder.Configuration["Auth:Authority"];
-    opciones.Audience = builder.Configuration["Auth:Audience"];
-    opciones.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
-});
-builder.Services.AddAuthorization();
-
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll", policy =>
-    {
-        policy.AllowAnyOrigin()
-              .AllowAnyHeader()
-              .AllowAnyMethod();
-    });
-});
-
-builder.Services.AddOutputCache(opciones => opciones.DefaultExpirationTimeSpan = TimeSpan.FromMinutes(5));
-
-builder.Services.AddDbContext<AppDbContext>(options =>
+// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+builder.Services.AddDbContext<BookingDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DbConexion")));
+builder.Services.AddScoped<IReservaService, ReservaService>();
+builder.Services.AddScoped<IReservaRepository, ReservaRepository>();
 
 var app = builder.Build();
 
+// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
-    app.MapScalarApiReference(options =>
-    {
-        options
-            .WithTitle("Booking API")
-            .WithTheme(ScalarTheme.Moon);
-    });
 }
-app.UseMiddleware<ErrorHandlingMiddleware>();
-app.UseHttpsRedirection();
-app.UseOutputCache();
-app.UseCors("AllowAll");
 
-app.UseAuthentication();
+app.UseHttpsRedirection();
+
 app.UseAuthorization();
 
 app.MapControllers();
