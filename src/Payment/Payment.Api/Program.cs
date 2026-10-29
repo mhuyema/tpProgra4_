@@ -1,58 +1,20 @@
-using Microsoft.EntityFrameworkCore;
-using Payment.Api.Core;
-using Payment.Api.Infraestructura.Data;
-using Scalar.AspNetCore;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Payment.Api.Services;
+using Payment.Business.Services;
+using Payment.Data.Repositories;
+using ProtoBuf.Grpc.Server;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
-builder.Services.AddOpenApi();
-
-// Autenticación: este servicio NO emite tokens, solo valida los que emite el servidor de autorización.
-builder.Services.AddAuthentication().AddJwtBearer(opciones =>
-{
-    opciones.MapInboundClaims = false;
-    opciones.Authority = builder.Configuration["Auth:Authority"];
-    opciones.Audience = builder.Configuration["Auth:Audience"];
-    opciones.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
-});
-builder.Services.AddAuthorization();
-
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll", policy =>
-    {
-        policy.AllowAnyOrigin()
-              .AllowAnyHeader()
-              .AllowAnyMethod();
-    });
-});
-
-builder.Services.AddOutputCache(opciones => opciones.DefaultExpirationTimeSpan = TimeSpan.FromMinutes(5));
-
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DbConexion")));
+// HTTP/2 explícito también para el perfil HTTP local sin TLS.
+builder.WebHost.ConfigureKestrel(options =>
+    options.ConfigureEndpointDefaults(endpoint => endpoint.Protocols = HttpProtocols.Http2));
+builder.Services.AddCodeFirstGrpc();
+builder.Services.AddSingleton<IPaymentRepository, PaymentRepository>();
+builder.Services.AddSingleton<IPaymentService, PaymentService>();
 
 var app = builder.Build();
-
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-    app.MapScalarApiReference(options =>
-    {
-        options
-            .WithTitle("Payment API")
-            .WithTheme(ScalarTheme.Moon);
-    });
-}
-app.UseMiddleware<ErrorHandlingMiddleware>();
-app.UseHttpsRedirection();
-app.UseOutputCache();
-app.UseCors("AllowAll");
-
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapControllers();
-
+app.MapGrpcService<PayGrpcService>();
 app.Run();
+
+public partial class Program { }
