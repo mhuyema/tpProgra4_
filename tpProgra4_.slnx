@@ -7,6 +7,9 @@
     <Project Path="src/Booking/Booking.Business/Booking.Business.csproj" />
     <Project Path="src/Booking/Booking.Data/Booking.Data.csproj" />
   </Folder>
+  <Folder Name="/Broker/">
+    <Project Path="src/Broker/Broker.Messaging/Broker.Messaging.csproj" />
+  </Folder>
   <Folder Name="/Payment/">
     <Project Path="src/Payment/Payment.Api/Payment.Api.csproj" />
   </Folder>
