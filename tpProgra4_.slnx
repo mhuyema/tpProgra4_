@@ -12,5 +12,14 @@
   </Folder>
   <Folder Name="/Payment/">
     <Project Path="src/Payment/Payment.Api/Payment.Api.csproj" />
+    <Project Path="src/Payment/Payment.Business/Payment.Business.csproj" />
+    <Project Path="src/Payment/Payment.Contracts/Payment.Contracts.csproj" />
+    <Project Path="src/Payment/Payment.Data/Payment.Data.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="tests/Payment.Tests/Payment.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Tools/">
+    <Project Path="tools/Payment.ProtoGenerator/Payment.ProtoGenerator.csproj" />
   </Folder>
 </Solution>

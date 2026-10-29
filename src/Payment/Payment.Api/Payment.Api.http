@@ -1,11 +1,73 @@
-@Payment.Api_HostAddress = http://localhost:5087
+# Ejecutar con httpYac (anweber.vscode-httpyac).
+# Generar los esquemas desde la raíz: dotnet run --project tools/Payment.ProtoGenerator
+# Guid usa {lo, hi}; decimal usa {lo, hi, signScale} según protobuf-net/bcl.proto.
+# 150.75m = lo 15075, hi 0, signScale 4 (escala 2, signo positivo).
+@server = localhost:5087
 
-POST {{Payment.Api_HostAddress}}/api/usuario/login
-Content-Type: application/json
+proto < ../Protos/payment.proto
+keepCase: true
+longs: String
+enums: String
 
+### Aprobar un pago: APPROVED
+# @name approve
+GRPC {{server}}/Payment.Contracts.PaymentGrpcService/Pay
 {
-  "email": "usuario@ejemplo.com",
-  "password": "TuPassword123!"
+  "BookingId": { "lo": "1", "hi": "0" },
+  "PaymentAttemptId": { "lo": "101", "hi": "0" },
+  "Amount": { "lo": "15075", "hi": 0, "signScale": 4 }
 }
 
-###
+### Repetir el intento: mismo PaymentId y APPROVED
+# @name repeat
+GRPC {{server}}/Payment.Contracts.PaymentGrpcService/Pay
+{
+  "BookingId": { "lo": "1", "hi": "0" },
+  "PaymentAttemptId": { "lo": "101", "hi": "0" },
+  "Amount": { "lo": "15075", "hi": 0, "signScale": 4 }
+}
+
+### Importe cero: REJECTED
+# @name reject
+GRPC {{server}}/Payment.Contracts.PaymentGrpcService/Pay
+{
+  "BookingId": { "lo": "2", "hi": "0" },
+  "PaymentAttemptId": { "lo": "201", "hi": "0" },
+  "Amount": { "lo": "0", "hi": 0, "signScale": 0 }
+}
+
+### Otro intento después del rechazo: APPROVED
+# @name retryAfterRejection
+GRPC {{server}}/Payment.Contracts.PaymentGrpcService/Pay
+{
+  "BookingId": { "lo": "2", "hi": "0" },
+  "PaymentAttemptId": { "lo": "202", "hi": "0" },
+  "Amount": { "lo": "15075", "hi": 0, "signScale": 4 }
+}
+
+### Conflicto de importe: gRPC AlreadyExists (6). Ejecutar después de approve.
+# @name amountConflict
+GRPC {{server}}/Payment.Contracts.PaymentGrpcService/Pay
+{
+  "BookingId": { "lo": "1", "hi": "0" },
+  "PaymentAttemptId": { "lo": "101", "hi": "0" },
+  "Amount": { "lo": "200", "hi": 0, "signScale": 0 }
+}
+
+### Nuevo intento con reserva aprobada: gRPC AlreadyExists (6)
+# @name approvedBookingConflict
+GRPC {{server}}/Payment.Contracts.PaymentGrpcService/Pay
+{
+  "BookingId": { "lo": "1", "hi": "0" },
+  "PaymentAttemptId": { "lo": "102", "hi": "0" },
+  "Amount": { "lo": "15075", "hi": 0, "signScale": 4 }
+}
+
+### Guid.Empty: gRPC InvalidArgument (3)
+# @name invalidBooking
+GRPC {{server}}/Payment.Contracts.PaymentGrpcService/Pay
+{
+  "BookingId": { "lo": "0", "hi": "0" },
+  "PaymentAttemptId": { "lo": "301", "hi": "0" },
+  "Amount": { "lo": "100", "hi": 0, "signScale": 0 }
+}
