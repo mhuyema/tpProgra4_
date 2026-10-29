@@ -15,17 +15,17 @@ public class  ReservaService : IReservaService
     public async Task<Reserva> ProcesarSolicitudAsync(SolicitudReservaMessage m)
     {
         // Idempotencia: si el broker entrega el mensaje dos veces, devolvemos la misma reserva
-        var existente = await _repo.ObtenerPorSolicitudAsync(m.SolicitudId);
+        var existente = await _repo.ObtenerPorSolicitudAsync(m.RequestId);
         if (existente is not null) return existente;
 
         var ahora = DateTime.UtcNow;
         var reserva = new Reserva
         {
             Id = Guid.NewGuid(),
-            SolicitudId = m.SolicitudId,
-            EventoId = m.EventoId,
-            AsientoId = m.AsientoId,
-            UsuarioId = m.UsuarioId,
+            SolicitudId = m.RequestId,
+            EventoId = m.EventId,
+            AsientoId = m.SeatId,
+            UsuarioId = m.UserId,
             Estado = EstadoReserva.Retenida,
             CreadaEn = ahora,
             VenceEn = ahora + TiempoRetencion
@@ -35,21 +35,27 @@ public class  ReservaService : IReservaService
         if (await _repo.TryAgregarRetenidaAsync(reserva)) return reserva;
 
         // Fallo: puede ser asiento ocupado, o el mismo mensaje procesado en parelelo
-        existente = await _repo.ObtenerPorSolicitudAsync(m.SolicitudId);
+        existente = await _repo.ObtenerPorSolicitudAsync(m.RequestId);
         if (existente is not null) return existente;
 
         var rechazada = new Reserva
         {
             Id = Guid.NewGuid(),
-            SolicitudId = m.SolicitudId,
-            EventoId = m.EventoId,
-            AsientoId = m.AsientoId,
-            UsuarioId = m.UsuarioId,
+            SolicitudId = m.RequestId,
+            EventoId = m.EventId,
+            AsientoId = m.SeatId,
+            UsuarioId = m.UserId,
             Estado = EstadoReserva.Rechazada,
             Motivo = MotivoRechazo.AsientoOcupado,
             CreadaEn = ahora
         };
         await _repo.AgregarAsync(rechazada);
         return rechazada;
+    }
+
+    // Consulta el estado de una solicitud sin acceder directamente a la base de datos.
+    public Task<Reserva?> ObtenerPorSolicitudAsync(Guid solicitudId)
+    {
+        return _repo.ObtenerPorSolicitudAsync(solicitudId);
     }
 }
