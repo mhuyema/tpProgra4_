@@ -22,6 +22,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Payment\Payment.Contracts\Payment.Contracts.csproj" />
     <ProjectReference Include="..\Booking.Business\Booking.Business.csproj" />
+    <!-- Libreria compartida del grupo: abstracciones y suscriptor de Service Bus (topic + suscripcion) -->
+    <ProjectReference Include="..\..\Broker\Broker.Messaging\Broker.Messaging.csproj" />
   </ItemGroup>
 
 </Project>
