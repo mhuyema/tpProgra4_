@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Payment.Api.Core;
 using Payment.Api.Core.Interface;
-using Payment.Api.Infraestructura.Data;
+using Payment.Data;
 
 public class BaseService<T> : IService<T>
     where T : Entity

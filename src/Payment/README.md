@@ -1,14 +1,14 @@
-# Payment — Fase 1
+# Payment
 
-Implementación gRPC code first con protobuf-net.Grpc. No requiere SQL ni autenticación.
-Los pagos se guardan en memoria hasta detener Payment.Api.
+Implementación gRPC code first con protobuf-net.Grpc y persistencia en SQL Server mediante EF Core.
+Los pagos se guardan en la tabla Payments y siguen disponibles después de reiniciar Payment.Api.
 
 ## Capas
 
 - Payment.Contracts: interfaz gRPC, mensajes serializados y enum público con UNSPECIFIED = 0.
 - Payment.Api: comunicación gRPC y traducción de errores.
 - Payment.Business: reglas en PaymentService; no depende de gRPC.
-- Payment.Data: entidad anémica, enum de dominio y repositorio en memoria.
+- Payment.Data: entidad anémica, enum de dominio, AppDbContext, migraciones y repositorio SQL.
 
 El enum del dominio solo admite PROCESSING, APPROVED y REJECTED. La API lo convierte
 explícitamente al enum del contrato; sus valores numéricos no se usan como equivalentes.
@@ -19,8 +19,12 @@ Desde la raíz de la solución:
 
 ```powershell
 dotnet run --project src/Payment/Payment.Api --launch-profile http
-dotnet test tests/Payment.Tests/Payment.Tests.csproj
 ```
+
+Configurar `ConnectionStrings:DbConexion` (o la variable `ConnectionStrings__DbConexion`).
+Por defecto usa LocalDB y la base PaymentDb. Al iniciar aplica las migraciones existentes.
+El contexto y las migraciones están en Payment.Data; se conserva el identificador de la
+migración inicial para reutilizar una base ya creada.
 
 Payment escucha en http://localhost:5087 usando HTTP/2. No redirige a HTTPS.
 La integración del cliente en Booking queda pendiente; esta fase no modifica Booking.
@@ -63,19 +67,19 @@ con el flujo de reservas deberán implementarse en Booking por separado.
 - Las búsquedas individuales y la actualización de un ID inexistente devuelven null.
 - Solo se permite actualizar PROCESSING a APPROVED o REJECTED.
 
-El servicio y el repositorio son singleton. PaymentService protege conjuntamente la
-consulta, validación y creación mediante un lock compartido; libera el lock antes de
-procesar. El repositorio protege sus datos y devuelve copias para impedir cambios externos.
+El servicio, el repositorio y AppDbContext son Scoped. Las consultas usan AsNoTracking
+y las inserciones se desacoplan del contexto después de guardar para impedir cambios externos.
+Los índices únicos de Payments impiden duplicar un intento y tener más de un pago activo
+por reserva, incluso con varias instancias del servicio. Si una inserción pierde la carrera,
+se descarta la entidad fallida y se consulta el intento guardado: igual importe devuelve
+el pago existente; distinto importe u otro intento activo devuelve conflicto.
+La transición de estado usa un UPDATE condicionado por PROCESSING, atómico en SQL.
 La simulación asíncrona no agrega demoras artificiales ni cancela el pago si el cliente se
 desconecta después de crearlo.
 
-Esta exclusión protege una única instancia del proceso. Los datos y la coordinación
-distribuida entre réplicas quedan para una fase con persistencia.
-
-Las pruebas cubren reglas, reintentos, concurrencia, transiciones y aislamiento del
-repositorio, además de llamadas gRPC a la aplicación con un cliente de Payment.Contracts.
-La plantilla previa de Payment.Api conserva archivos y dependencias de infraestructura;
-no se registran ni se ejecutan SQL, autenticación o middleware de logs de aplicación.
+El contrato gRPC conserva sus mensajes, estados y códigos de error.
+Las pruebas previas basadas en el constructor sin dependencias del repositorio en memoria
+requieren adaptación a SQL; no se modificaron ni ejecutaron en este cambio.
 
 ## Generar el .proto y probar desde VS Code
 
@@ -103,7 +107,12 @@ en orden. El archivo ya importa el esquema generado. Las dos primeras respuestas
 deben mostrar APPROVED y el mismo PaymentId; siguen un rechazo, otro intento aprobado,
 dos conflictos (código gRPC 6) y un identificador vacío (código gRPC 3).
 Esos errores son resultados esperados. Los ejemplos usan IDs fijos: para repetir
-desde cero, reiniciar Payment o cambiar los identificadores.
+desde cero, cambiar los identificadores; reiniciar Payment conserva los pagos.
+
+Para comprobar manualmente la persistencia, ejecutar approve, conservar el PaymentId,
+reiniciar Payment y ejecutar repeat con la misma base y configuración. Debe devolver
+el mismo PaymentId, importe y estado. Esta comprobación no se ejecutó en este cambio:
+la validación se limita al build de Payment.Api.
 
 Como Guid y decimal usan los mensajes de bcl.proto, los cuerpos contienen objetos
 en lugar de strings UUID o números decimales directos. Los valores de 64 bits se

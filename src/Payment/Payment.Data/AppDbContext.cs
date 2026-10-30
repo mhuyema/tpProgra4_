@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PaymentEntity = Payment.Data.Entities.Payment;
 
-namespace Payment.Api.Infraestructura.Data
+namespace Payment.Data
 {
     // Sin Identity: los usuarios viven en el servidor de autorización, este servicio solo valida tokens.
     public class AppDbContext : DbContext
