@@ -11,8 +11,8 @@ public class BrokerOptions
 
     public string? ConnectionString { get; set; }
 
-    /// <summary>Topic del grupo 9 (convención de la cátedra: grupoN-booking-topic).</summary>
-    public string TopicName { get; set; } = "grupo9-booking-topic";
+    /// <summary>Topic del grupo 9 en Azure Service Bus (el connection string de la cátedra está atado a esta entidad).</summary>
+    public string TopicName { get; set; } = "grupo9";
 
     /// <summary>Cantidad de mensajes procesados en paralelo por cada suscriptor.</summary>
     public int MaxConcurrentCalls { get; set; } = 4;
