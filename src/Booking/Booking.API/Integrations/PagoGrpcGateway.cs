@@ -1,5 +1,7 @@
 ﻿using Booking.Business.Payments;
 using Payment.Contracts;
+using Grpc.Core;
+using ProtoBuf.Grpc;
 
 namespace Booking.API.Integrations;
 
@@ -28,7 +30,32 @@ public class PagoGrpcGateway : IPagoGateway
             PaymentAttemptId = intentoPagoId
         };
 
-        var response = await _paymentClient.PayAsync(request);
+        // Los errores transitorios de gRPC se traducen a una excepción interna.
+        // Business podrá decidir si corresponde reintentar el mismo pago,
+        // sin interpretar una falla de comunicación como un rechazo.
+        
+        PayResponse response;
+
+        try
+        {
+            // Se limita cada llamada a 10 segundos para que una falla de Payment
+            // no bloquee indefinidamente el procesamiento ni la recuperación.
+            var opciones = new CallOptions(
+                deadline: DateTime.UtcNow.AddSeconds(10));
+
+            response = await _paymentClient.PayAsync(
+                request,
+                new CallContext(opciones));
+        }
+        catch (RpcException ex) when (
+            ex.StatusCode == StatusCode.Unavailable ||
+            ex.StatusCode == StatusCode.DeadlineExceeded ||
+            ex.StatusCode == StatusCode.ResourceExhausted)
+        {
+            throw new PagoComunicacionException(
+                "No se pudo obtener una respuesta de Payment.",
+                ex);
+        }
 
         // Traduce explícitamente los estados de Payment a los estados internos
         // de Booking, evitando depender de sus valores numéricos.

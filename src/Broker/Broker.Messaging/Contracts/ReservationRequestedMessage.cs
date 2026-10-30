@@ -1,5 +1,10 @@
 namespace Broker.Messaging.Contracts;
 
+// Al incorporar Amount al contrato compartido entre Availability y Booking,
+// se completó la documentación XML de todos los parámetros del mensaje.
+// Originalmente solo estaba documentado RequestId, lo que generaba
+// advertencias CS1573 por los parámetros sin documentar.
+
 /// <summary>
 /// Mensaje que Availability publica al recibir una solicitud de reserva y que Booking consume.
 /// Es el contrato compartido entre ambos servicios. Es un mensaje anémico (solo datos), igual que el dominio.

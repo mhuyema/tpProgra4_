@@ -95,11 +95,69 @@ public class ReservaRepository : IReservaRepository
         return TryActualizarEstadoAsync(reservaId, desde, hacia, motivo);
     }
 
-    public Task<int> VencerRetenidasAsync(DateTime ahoraUtc) =>
-        _db.Reservas
-            .Where(r => r.Estado == EstadoReserva.Retenida &&
-                        r.VenceEn != null &&
-                        r.VenceEn < ahoraUtc)
-            .ExecuteUpdateAsync(s =>
-                s.SetProperty(r => r.Estado, EstadoReserva.Vencida));
+    // Modificación del método original: ExecuteUpdateAsync solamente
+    // devolvía la cantidad de reservas vencidas, sin identificar cada
+    // solicitud. Para completar la auditoría, ahora se obtienen los
+    // identificadores y se registra únicamente cada transición exitosa.
+
+    // Implementación original:
+    // public Task<int> VencerRetenidasAsync(DateTime ahoraUtc) =>
+    //     _db.Reservas
+    //         .Where(r => r.Estado == EstadoReserva.Retenida &&
+    //                     r.VenceEn != null &&
+    //                     r.VenceEn < ahoraUtc)
+    //         .ExecuteUpdateAsync(s =>
+    //             s.SetProperty(r => r.Estado, EstadoReserva.Vencida));
+
+    public async Task<IReadOnlyList<(Guid ReservaId, Guid SolicitudId)>>
+        VencerRetenidasAsync(DateTime ahoraUtc)
+    {
+        // Identifica las reservas candidatas a vencer.
+        // La consulta no modifica todavía sus estados.
+        var candidatas = await _db.Reservas
+            .AsNoTracking()
+            .Where(r =>
+                r.Estado == EstadoReserva.Retenida &&
+                r.VenceEn != null &&
+                r.VenceEn < ahoraUtc)
+            .Select(r => new { r.Id, r.SolicitudId })
+            .ToListAsync();
+
+        var vencidas = new List<(Guid ReservaId, Guid SolicitudId)>();
+
+        foreach (var reserva in candidatas)
+        {
+            // La transición es atómica. Si otra réplica modificó
+            // la reserva, no se incluye entre los vencimientos.
+            var aplicada = await TryActualizarEstadoAsync(
+                reserva.Id,
+                EstadoReserva.Retenida,
+                EstadoReserva.Vencida,
+                null);
+
+            if (aplicada)
+            {
+                vencidas.Add((reserva.Id, reserva.SolicitudId));
+            }
+        }
+
+        return vencidas;
+    }
+
+    // Recupera pagos pendientes desde SQL Server para permitir
+    // su reanudación incluso después de reiniciar Booking.
+    public async Task<IReadOnlyList<Guid>> ObtenerSolicitudesConPagoPendienteAsync(
+        DateTime ahoraUtc)
+    {
+        return await _db.Reservas
+            .AsNoTracking()
+            .Where(r =>
+                r.Estado == EstadoReserva.Retenida &&
+                r.IntentoPagoId != null &&
+                r.VenceEn != null &&
+                r.VenceEn > ahoraUtc)
+            .OrderBy(r => r.CreadaEn)
+            .Select(r => r.SolicitudId)
+            .ToListAsync();
+    }
 }

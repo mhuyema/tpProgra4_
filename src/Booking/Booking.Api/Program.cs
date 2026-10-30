@@ -49,6 +49,10 @@ builder.Services.AddBrokerSubscriber<ReservationRequestedMessage, ReservationReq
 // Paso 8 del flujo: vence las reservas Retenidas que superaron su tiempo.
 builder.Services.AddHostedService<ReservaVencimientoWorker>();
 
+// Recupera pagos retenidos que siguen en procesamiento o cuya
+// comunicación con Payment falló, sin crear nuevos intentos.
+builder.Services.AddHostedService<PagosPendientesWorker>();
+
 var app = builder.Build();
 
 // Aplica las migraciones al arrancar para que el primer mensaje no falle por falta de tablas.

@@ -10,6 +10,12 @@ namespace Booking.Business.Services;
 public class ReservaService : IReservaService
 {
     private static readonly TimeSpan TiempoRetencion = TimeSpan.FromMinutes(5);
+
+    // Margen final de la retención para decidir el rechazo por
+    // indisponibilidad de Payment, después de los reintentos.
+    private static readonly TimeSpan MargenPagoNoDisponible =
+        TimeSpan.FromSeconds(30);
+
     private readonly IReservaRepository _repo;
     private readonly IPagoGateway _pagoGateway;
     private readonly ILogger<ReservaService> _logger;
@@ -26,6 +32,11 @@ public class ReservaService : IReservaService
         _logger = logger;
     }
 
+    // Se adapta el método original al contrato actualizado con Availability:
+    // RequestId identifica la solicitud y Amount aporta el importe de la reserva.
+    // Se conservan las reglas de idempotencia, retención, rechazo y auditoría.
+    // El procesamiento del cobro se delega a ProcesarPagoAsync para mantener
+    // separadas la creación de la reserva y la comunicación con Payment.
     public async Task<Reserva> ProcesarSolicitudAsync(SolicitudReservaMessage m)
     {
         // Idempotencia: si el broker entrega el mensaje dos veces, devolvemos la misma reserva
@@ -120,7 +131,22 @@ public class ReservaService : IReservaService
 
     public async Task<int> VencerReservasAsync()
     {
-        var cantidad = await _repo.VencerRetenidasAsync(DateTime.UtcNow);
+        // Implementación original:
+        // var cantidad = await _repo.VencerRetenidasAsync(DateTime.UtcNow);
+
+        // El repositorio ahora devuelve las reservas efectivamente vencidas,
+        // para auditar el cierre individual de cada solicitud.
+        var vencidas = await _repo.VencerRetenidasAsync(DateTime.UtcNow);
+
+        foreach (var reserva in vencidas)
+        {
+            _logger.LogInformation(
+                "[AUDITORIA] FIN de procesamiento. SolicitudId={SolicitudId} ReservaId={ReservaId} EstadoFinal=Vencida",
+                reserva.SolicitudId,
+                reserva.ReservaId);
+        }
+
+        var cantidad = vencidas.Count;
 
         if (cantidad > 0)
             _logger.LogInformation(
@@ -164,15 +190,76 @@ public class ReservaService : IReservaService
             ?? throw new InvalidOperationException(
                 "No se pudo recuperar el identificador del intento de pago.");
 
+        // Auditoría: identifica el inicio o la reanudación del intento
+        // y permite correlacionarlo con la solicitud original.
+        _logger.LogInformation(
+            "[AUDITORIA] Inicio/reanudación de pago. SolicitudId={SolicitudId} ReservaId={ReservaId} IntentoPagoId={IntentoPagoId}",
+            solicitudId, reserva.Id, intentoPagoId);
+
         // El identificador y el importe provienen de la reserva persistida.
         // Ante una falla de comunicación, el intento puede retomarse sin duplicarlo.
-        var resultado = await _pagoGateway.ProcesarPagoAsync(
-            reserva.Id,
-            reserva.Importe,
-            intentoPagoId);
+        ResultadoPago resultado;
+
+        try
+        {
+            resultado = await _pagoGateway.ProcesarPagoAsync(
+                reserva.Id,
+                reserva.Importe,
+                intentoPagoId);
+        }
+        catch (PagoComunicacionException ex)
+        {
+            // Una respuesta perdida no equivale a un pago rechazado.
+            // Se mantiene el mismo intento para recuperarlo posteriormente.
+            _logger.LogWarning(
+                ex,
+                "[AUDITORIA] Sin respuesta de Payment. SolicitudId={SolicitudId} ReservaId={ReservaId} IntentoPagoId={IntentoPagoId}",
+                solicitudId,
+                reserva.Id,
+                intentoPagoId);
+
+            var actual = await ObtenerYVerificarVencimientoAsync(solicitudId);
+
+            if (actual.Estado != EstadoReserva.Retenida)
+                return actual;
+
+            // Si la comunicación continúa fallando cerca del vencimiento,
+            // se registra PagoNoDisponible y se libera la retención.
+            if (actual.VenceEn <= DateTime.UtcNow + MargenPagoNoDisponible)
+            {
+                var rechazada = await _repo.TryActualizarEstadoAsync(
+                    actual.Id,
+                    EstadoReserva.Retenida,
+                    EstadoReserva.Rechazada,
+                    MotivoRechazo.PagoNoDisponible);
+
+                if (rechazada)
+                {
+                    // Auditoría: se identifica la solicitud cuyo ciclo
+                    // terminó por indisponibilidad del servicio de pagos.
+                    _logger.LogWarning(
+                        "[AUDITORIA] FIN de procesamiento. SolicitudId={SolicitudId} ReservaId={ReservaId} EstadoFinal=Rechazada Motivo=PagoNoDisponible",
+                        solicitudId,
+                        actual.Id);
+                }
+
+                return await ObtenerYVerificarVencimientoAsync(solicitudId);
+            }
+
+            // Todavía hay tiempo para recuperar el resultado del mismo intento.
+            return actual;
+        }
 
         if (resultado.Estado == EstadoPago.EnProceso)
+        {
+            // El pago todavía no tiene resultado definitivo.
+            // El worker retomará posteriormente el mismo intento.
+            _logger.LogInformation(
+                "[AUDITORIA] Payment continúa procesando. SolicitudId={SolicitudId} ReservaId={ReservaId} IntentoPagoId={IntentoPagoId}",
+                solicitudId, reserva.Id, intentoPagoId);
+
             return await ObtenerYVerificarVencimientoAsync(solicitudId);
+        }
 
         // Traduce el resultado del pago a la transición de estado correspondiente.
         var estadoNuevo = resultado.Estado switch
@@ -187,11 +274,26 @@ public class ReservaService : IReservaService
             ? MotivoRechazo.PagoFallido
             : (MotivoRechazo?)null;
 
-        await _repo.TryActualizarEstadoAsync(
+        // Se registra si la transición fue efectivamente aplicada.
+        // Otra réplica o el worker de vencimientos pudo haberla realizado antes.
+        var transicionAplicada = await _repo.TryActualizarEstadoAsync(
             reserva.Id,
             EstadoReserva.Retenida,
             estadoNuevo,
             motivo);
+
+        if (transicionAplicada)
+        {
+            _logger.LogInformation(
+                "[AUDITORIA] FIN de procesamiento. SolicitudId={SolicitudId} ReservaId={ReservaId} EstadoFinal={Estado} Motivo={Motivo} IntentoPagoId={IntentoPagoId}",
+                solicitudId, reserva.Id, estadoNuevo, motivo, intentoPagoId);
+        }
+        else
+        {
+            _logger.LogWarning(
+                "[AUDITORIA] No se aplicó la transición del pago. SolicitudId={SolicitudId} ReservaId={ReservaId} EstadoSolicitado={Estado}",
+                solicitudId, reserva.Id, estadoNuevo);
+        }
 
         // Se consulta el estado real porque otro proceso pudo modificarlo.
         reserva = await ObtenerYVerificarVencimientoAsync(solicitudId);
@@ -233,11 +335,20 @@ public class ReservaService : IReservaService
 
         if (reserva.VenceEn <= DateTime.UtcNow)
         {
-            await _repo.TryActualizarEstadoAsync(
+            // Registra el cierre cuando el vencimiento se detecta
+            // durante el procesamiento o recuperación del pago.
+            var vencimientoAplicado = await _repo.TryActualizarEstadoAsync(
                 reserva.Id,
                 EstadoReserva.Retenida,
                 EstadoReserva.Vencida,
                 null);
+
+            if (vencimientoAplicado)
+            {
+                _logger.LogInformation(
+                    "[AUDITORIA] FIN de procesamiento. SolicitudId={SolicitudId} ReservaId={ReservaId} EstadoFinal=Vencida",
+                    solicitudId, reserva.Id);
+            }
 
             reserva = await _repo.ObtenerPorSolicitudAsync(solicitudId)
                 ?? throw new InvalidOperationException(

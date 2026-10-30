@@ -1,5 +1,6 @@
 using Booking.Business.Messages;
 using Booking.Business.Services;
+using Booking.Data.Entities;
 using Broker.Messaging.Abstractions;
 using Broker.Messaging.Contracts;
 
@@ -37,8 +38,11 @@ public class ReservationRequestedHandler : IMessageHandler<ReservationRequestedM
             return;
         }
 
-        _logger.LogInformation("[AUDITORIA] Booking procesa la solicitud. Evento={EventoId} Asiento={AsientoId} Usuario={UsuarioId}",
-            message.EventId, message.SeatId, message.UserId);
+        // Registra explícitamente el inicio de la solicitud y su identificador,
+        // independientemente de que el proveedor de logs muestre el scope.
+        _logger.LogInformation(
+            "[AUDITORIA] INICIO de procesamiento. SolicitudId={SolicitudId} Evento={EventoId} Asiento={AsientoId} Usuario={UsuarioId}",
+            message.RequestId, message.EventId, message.SeatId, message.UserId);
 
         var solicitud = new SolicitudReservaMessage(
                      message.RequestId,
@@ -47,14 +51,30 @@ public class ReservationRequestedHandler : IMessageHandler<ReservationRequestedM
                      message.UserId,
                      message.Amount);
 
-        var reserva = await _service.ProcesarSolicitudAsync(solicitud);
+        // Línea original: procesaba la solicitud, pero no iniciaba el cobro.
+        // var reserva = await _service.ProcesarSolicitudAsync(solicitud);
 
         // TODO (cobro): si reserva.Estado == Retenida, aca se llama por gRPC a Payment y segun la respuesta
         // se invoca _service.ConfirmarAsync / _service.RechazarAsync (APPROVED / REJECTED / Payment caido).
         // Ojo: si el mensaje es una re-entrega, la reserva puede estar ya Confirmada/Rechazada:
         // solo cobrar si sigue Retenida.
 
-        _logger.LogInformation("[AUDITORIA] Solicitud procesada. Reserva={ReservaId} Estado={Estado} Motivo={Motivo}",
-            reserva.Id, reserva.Estado, reserva.Motivo);
+        // Cambio de lógica: se conserva el procesamiento inicial y se delega el cobro
+        // a ProcesarPagoAsync, que ya gestiona las respuestas de Payment y reutiliza
+        // IntentoPagoId ante reentregas. Solo se invoca si la reserva sigue Retenida.
+
+        var reserva = await _service.ProcesarSolicitudAsync(solicitud);
+
+        if (reserva.Estado == EstadoReserva.Retenida)
+        {
+            reserva = await _service.ProcesarPagoAsync(reserva.SolicitudId);
+        }
+
+        // Identifica el cierre del procesamiento del mensaje.
+        // Si la reserva sigue Retenida, su ciclo todavía no ha finalizado:
+        // el seguimiento continúa mediante PagosPendientesWorker.
+        _logger.LogInformation(
+            "[AUDITORIA] FIN del procesamiento del mensaje. SolicitudId={SolicitudId} ReservaId={ReservaId} EstadoActual={Estado} Motivo={Motivo}",
+            reserva.SolicitudId, reserva.Id, reserva.Estado, reserva.Motivo);
     }
 }
