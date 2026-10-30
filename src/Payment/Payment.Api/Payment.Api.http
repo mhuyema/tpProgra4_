@@ -19,6 +19,7 @@ GRPC {{server}}/Payment.Contracts.PaymentGrpcService/Pay
 }
 
 ### Repetir el intento: mismo PaymentId y APPROVED
+# También después de reiniciar Payment con la misma base SQL.
 # @name repeat
 GRPC {{server}}/Payment.Contracts.PaymentGrpcService/Pay
 {

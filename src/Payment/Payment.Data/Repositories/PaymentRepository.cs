@@ -1,69 +1,62 @@
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using Payment.Data.Entities;
+using Payment.Data.Exceptions;
 using PaymentEntity = Payment.Data.Entities.Payment;
 
 namespace Payment.Data.Repositories;
 
-public sealed class PaymentRepository : IPaymentRepository
+public sealed class PaymentRepository(AppDbContext db) : IPaymentRepository
 {
-    private readonly object _sync = new();
-    private readonly Dictionary<Guid, PaymentEntity> _payments = new();
-
     public void CreatePayment(PaymentEntity payment)
     {
-        lock (_sync)
+        if (payment.Status != PaymentStatus.PROCESSING)
+            throw new InvalidOperationException("Un pago nuevo debe estar PROCESSING.");
+
+        db.Payments.Add(payment);
+        try
         {
-            if (_payments.ContainsKey(payment.PaymentId) || _payments.Values.Any(p =>
-                p.BookingId == payment.BookingId && p.PaymentAttemptId == payment.PaymentAttemptId))
-                throw new InvalidOperationException("El pago o intento ya existe.");
-            if (payment.Status != PaymentStatus.PROCESSING)
-                throw new InvalidOperationException("Un pago nuevo debe estar PROCESSING.");
-            _payments.Add(payment.PaymentId, Copy(payment));
+            db.SaveChanges();
+        }
+        // Los índices únicos coordinan también solicitudes de distintas instancias.
+        catch (DbUpdateException exception) when (
+            exception.InnerException is SqlException { Number: 2601 or 2627 })
+        {
+            throw new DuplicatePaymentException(exception);
+        }
+        finally
+        {
+            // Descarta la inserción fallida e impide cambios externos sin guardar.
+            db.Entry(payment).State = EntityState.Detached;
         }
     }
 
-    public PaymentEntity? GetPayment(Guid paymentId)
-    {
-        lock (_sync)
-            return _payments.TryGetValue(paymentId, out var payment) ? Copy(payment) : null;
-    }
+    public PaymentEntity? GetPayment(Guid paymentId) =>
+        db.Payments.AsNoTracking().FirstOrDefault(p => p.PaymentId == paymentId);
 
-    public IReadOnlyList<PaymentEntity> GetPaymentByBookingId(Guid bookingId)
-    {
-        lock (_sync)
-            return _payments.Values.Where(p => p.BookingId == bookingId).Select(Copy).ToArray();
-    }
+    public IReadOnlyList<PaymentEntity> GetPaymentByBookingId(Guid bookingId) =>
+        db.Payments.AsNoTracking().Where(p => p.BookingId == bookingId).ToArray();
 
-    public PaymentEntity? GetPaymentByAttempt(Guid bookingId, Guid paymentAttemptId)
-    {
-        lock (_sync)
-        {
-            var payment = _payments.Values.FirstOrDefault(p =>
-                p.BookingId == bookingId && p.PaymentAttemptId == paymentAttemptId);
-            return payment is null ? null : Copy(payment);
-        }
-    }
+    public PaymentEntity? GetPaymentByAttempt(Guid bookingId, Guid paymentAttemptId) =>
+        db.Payments.AsNoTracking().FirstOrDefault(p =>
+            p.BookingId == bookingId && p.PaymentAttemptId == paymentAttemptId);
 
     public PaymentEntity? UpdatePaymentStatus(Guid paymentId, PaymentStatus status)
     {
-        lock (_sync)
+        if (status is PaymentStatus.APPROVED or PaymentStatus.REJECTED)
         {
-            if (!_payments.TryGetValue(paymentId, out var payment)) return null;
-            if (payment.Status != PaymentStatus.PROCESSING ||
-                status is not (PaymentStatus.APPROVED or PaymentStatus.REJECTED))
-                throw new InvalidOperationException("Solo se permite pasar de PROCESSING a APPROVED o REJECTED.");
-            payment.Status = status;
-            return Copy(payment);
-        }
-    }
+            // La condición en SQL impide que dos solicitudes finalicen el mismo pago.
+            var updated = db.Payments
+                .Where(p => p.PaymentId == paymentId && p.Status == PaymentStatus.PROCESSING)
+                .ExecuteUpdate(setters => setters.SetProperty(p => p.Status, status));
 
-    // Las copias impiden modificar el estado almacenado sin pasar por el repositorio.
-    private static PaymentEntity Copy(PaymentEntity payment) => new()
-    {
-        PaymentId = payment.PaymentId,
-        BookingId = payment.BookingId,
-        PaymentAttemptId = payment.PaymentAttemptId,
-        Amount = payment.Amount,
-        Status = payment.Status,
-        CreatedAt = payment.CreatedAt
-    };
+            if (updated == 1)
+                return GetPayment(paymentId);
+        }
+
+        if (GetPayment(paymentId) is null)
+            return null;
+
+        throw new InvalidOperationException("Solo se permite pasar de PROCESSING a APPROVED o REJECTED.");
+    }
 }
