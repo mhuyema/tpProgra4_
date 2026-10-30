@@ -15,6 +15,6 @@ namespace Availability.Infrastructure.Repositorios
         }
 
         public async Task<SolicitudReserva?> ObtenerPorIdAsync(Guid id) =>
-            await db.Solicitudes.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id);
+            await db.Solicitudes.AsNoTracking().FirstOrDefaultAsync(s => s.RequestId == id);
     }
 }

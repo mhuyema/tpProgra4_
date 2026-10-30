@@ -8,7 +8,7 @@ namespace Availability.Application.Interfaces
     ///</summary>
     public interface IAsientoRepositorio
     {
-        Task<List<Asiento>> ListarPorEventoAsync(Guid eventoId);
-        Task<Asiento?> ObtenerPorIdAsync(Guid id);
+        Task<List<Asiento>> ListarPorEventoAsync(int eventoId);
+        Task<Asiento?> ObtenerPorIdAsync(int id);
     }
 }

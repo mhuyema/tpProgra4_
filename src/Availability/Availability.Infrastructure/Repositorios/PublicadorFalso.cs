@@ -13,7 +13,7 @@ namespace Availability.Infrastructure.Repositorios
         public Task PublicarAsync(SolicitudReserva solicitud)
         {
             logger.LogInformation("[SIMULADO] Solicitud {SolicitudId} publicada para el asiento {AsientoId}",
-                solicitud.Id, solicitud.AsientoId);
+                solicitud.RequestId, solicitud.AsientoId);
             return Task.CompletedTask;
         }
     }

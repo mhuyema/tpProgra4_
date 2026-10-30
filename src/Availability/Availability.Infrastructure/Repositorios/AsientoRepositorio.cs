@@ -8,13 +8,13 @@ namespace Availability.Infrastructure.Repositorios
     /// <summary>Implementación de IAsientoRepositorio con EF Core.</summary>
     public class AsientoRepositorio(AppDbContext db) : IAsientoRepositorio
     {
-        public async Task<List<Asiento>> ListarPorEventoAsync(Guid eventoId) =>
+        public async Task<List<Asiento>> ListarPorEventoAsync(int eventoId) =>
             await db.Asientos.AsNoTracking()
                 .Where(a => a.EventoId == eventoId)
                 .OrderBy(a => a.Fila).ThenBy(a => a.Numero)
                 .ToListAsync();
 
-        public async Task<Asiento?> ObtenerPorIdAsync(Guid id) =>
+        public async Task<Asiento?> ObtenerPorIdAsync(int id) =>
             await db.Asientos.AsNoTracking().FirstOrDefaultAsync(a => a.Id == id);
     }
 }

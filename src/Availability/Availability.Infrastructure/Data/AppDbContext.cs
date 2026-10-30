@@ -22,7 +22,6 @@ namespace Availability.Infrastructure.Data
 
             modelBuilder.Entity<Evento>().Property(e => e.RowVersion).IsRowVersion();
             modelBuilder.Entity<Asiento>().Property(a => a.RowVersion).IsRowVersion();
-            modelBuilder.Entity<SolicitudReserva>().Property(s => s.RowVersion).IsRowVersion();
 
             modelBuilder.Entity<Evento>(entity =>
             {
@@ -53,17 +52,11 @@ namespace Availability.Infrastructure.Data
             });
             modelBuilder.Entity<SolicitudReserva>(entity =>
             {
-                entity.HasKey(s => s.Id);
+                entity.HasKey(s => s.RequestId);
                 entity.Property(s => s.AsientoId).IsRequired();
                 entity.Property(s => s.UsuarioId).IsRequired().HasMaxLength(100);
-                entity.Property(s => s.NombreCliente).IsRequired().HasMaxLength(150);
-                entity.Property(s => s.EmailCliente).IsRequired().HasMaxLength(200);
-
-                entity.HasOne(s => s.Asiento)
-                      .WithMany()
-                      .HasForeignKey(s => s.AsientoId)
-                      .OnDelete(DeleteBehavior.Restrict);
-                entity.HasQueryFilter(e => !e.IsDeleted);
+                entity.Property(s => s.EventoId).IsRequired();
+          
 
             });
 

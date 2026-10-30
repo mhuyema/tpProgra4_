@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Text;
-
-namespace Availability.Domain.Entities.Core
+﻿namespace Availability.Domain.Entities.Core
 {
     /// <summary>
     /// Entidad genérica base de la que heredan todas las entidades del dominio.
@@ -11,7 +6,7 @@ namespace Availability.Domain.Entities.Core
     /// </summary>
     public class EntidadBase
     {
-        public Guid Id { get; set; }
+        public int Id { get; set; }
 
         public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
 

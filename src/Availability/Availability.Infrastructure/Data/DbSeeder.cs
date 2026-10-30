@@ -32,9 +32,9 @@ namespace Availability.Infrastructure.Data
 
         private static Evento Crear(string nombre, string lugar, DateTime inicio, string imagen)
         {
+
             var evento = new Evento
             {
-                Id = Guid.NewGuid(),
                 Nombre = nombre,
                 Descripcion = $"{nombre} en vivo.",
                 Lugar = lugar,
@@ -51,7 +51,6 @@ namespace Availability.Infrastructure.Data
                 {
                     evento.Asientos.Add(new Asiento
                     {
-                        Id = Guid.NewGuid(),
                         EventoId = evento.Id,
                         Fila = Filas[f].ToString(),
                         Numero = n,

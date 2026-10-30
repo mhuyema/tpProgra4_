@@ -12,7 +12,7 @@ public class ReservaController(
     ConsultarEstadoSolicitud consultarEstado) : Controller
 {
     [HttpGet]
-    public async Task<IActionResult> Asientos(Guid id)
+    public async Task<IActionResult> Asientos(int id)
     {
         var evento = await obtenerEvento.EjecutarAsync(id);
         if (evento is null) return NotFound();
@@ -49,7 +49,7 @@ public class ReservaController(
     }
 
     [HttpGet]
-    public async Task<IActionResult> Estado(Guid eventoId, Guid[] ids)
+    public async Task<IActionResult> Estado(int eventoId, Guid[] ids)
     {
         var evento = await obtenerEvento.EjecutarAsync(eventoId);
         if (evento is null || ids.Length == 0) return NotFound();

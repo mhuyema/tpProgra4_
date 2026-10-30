@@ -10,7 +10,7 @@ namespace Availability.Application.CasosDeUso
     /// </summary>
     public class ConsultarAsientosLibres(IEventoRepositorio eventoRepositorio, IAsientoRepositorio asientoRepositorio, IConsultaReservas consultaReservas) 
     {
-        public async Task<List<AsientoDTO>> EjecutarAsync(Guid eventoId)
+        public async Task<List<AsientoDTO>> EjecutarAsync(int eventoId)
         {
             _ = await eventoRepositorio.ObtenerEventoPorIdAsync(eventoId)
                 ?? throw new Exception("El evento no existe.");

@@ -12,7 +12,7 @@ namespace Availability.Application.CasosDeUso
     {
         public const int MaxAsientos = 6;
 
-        public async Task<List<Guid>> EjecutarAsync (Guid IdEvento, IReadOnlyList<Guid> IdAsientos, string IdUsuario, string nombre, string email)
+        public async Task<List<Guid>> EjecutarAsync (int IdEvento, IReadOnlyList<int> IdAsientos, string IdUsuario, string nombre, string email)
         {
             var ids = IdAsientos.Distinct().ToList();
 
@@ -30,11 +30,11 @@ namespace Availability.Application.CasosDeUso
 
                 creadas.Add(new SolicitudReserva
                 {
-                    Id = Guid.NewGuid(),
+                    RequestId = Guid.NewGuid(),
                     AsientoId = idAsiento,
                     UsuarioId = IdUsuario,
-                    NombreCliente = nombre,
-                    EmailCliente = email
+                    EventoId = IdEvento,
+
                 });
             }
 
@@ -44,7 +44,7 @@ namespace Availability.Application.CasosDeUso
                 await publicador.PublicarAsync(solicitud);
             }
 
-            return creadas.Select(s => s.Id).ToList();
+            return creadas.Select(s => s.RequestId).ToList();
         }
-    }
+    }   
 }

@@ -10,8 +10,8 @@ namespace Availability.Infrastructure.Repositorios
     /// </summary>
     public class ConsultaReservasFalsa : IConsultaReservas
     {
-        public Task<List<Guid>> ObtenerAsientosOcupadosAsync(Guid eventoId) =>
-            Task.FromResult(new List<Guid>());
+        public Task<List<int>> ObtenerAsientosOcupadosAsync(int eventoId) =>
+            Task.FromResult(new List<int>());
 
         public Task<EstadoSolicitudDTO> ObtenerEstadoAsync(Guid solicitudId) =>
             Task.FromResult(new EstadoSolicitudDTO

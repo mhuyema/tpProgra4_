@@ -4,7 +4,7 @@
     /// Lo que devuelven ListarEventos y ObtenerEvento.
     /// </summary>
     public record EventoDTO(
-        Guid Id,
+        int Id,
         string Nombre,
         string? Descripcion,
         string Lugar,

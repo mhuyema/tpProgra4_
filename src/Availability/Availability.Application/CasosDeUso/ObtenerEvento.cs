@@ -9,7 +9,7 @@ namespace Availability.Application.CasosDeUso
     /// </summary>
     public class ObtenerEvento(IEventoRepositorio eventos, IConsultaReservas consultaReservas)
     {
-        public async Task<EventoDTO?> EjecutarAsync(Guid eventoId)
+        public async Task<EventoDTO?> EjecutarAsync(int eventoId)
         {
             var e = await eventos.ObtenerEventoPorIdAsync(eventoId);
             if (e is null) return null;

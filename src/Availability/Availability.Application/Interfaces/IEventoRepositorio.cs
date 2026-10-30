@@ -8,6 +8,6 @@ namespace Availability.Application.Interfaces
     public interface IEventoRepositorio
     {
         Task<List<Evento>> ListarEventosAsync();
-        Task<Evento> ObtenerEventoPorIdAsync(Guid eventoId);
+        Task<Evento> ObtenerEventoPorIdAsync(int eventoId);
     }
 }

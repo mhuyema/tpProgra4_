@@ -5,6 +5,6 @@ namespace Availability.Web.Models;
 public record SolicitudEstadoItem(Guid SolicitudId, string Estado, string? Motivo);
 
 public record EstadoSolicitudViewModel(
-    Guid EventoId,
+    int EventoId,
     EventSummaryModel Event,
     IReadOnlyList<SolicitudEstadoItem> Solicitudes);

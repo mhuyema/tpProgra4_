@@ -4,7 +4,7 @@
     /// Lo que devuelve ConsultarAsientosLibres: todos los asientos del evento, con su estado.
     /// </summary>
     public record AsientoDTO(
-        Guid Id,
+        int Id,
         string Fila,
         int Numero,
         decimal Precio,

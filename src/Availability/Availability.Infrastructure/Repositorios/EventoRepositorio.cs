@@ -13,7 +13,7 @@ namespace Availability.Infrastructure.Repositorios
             await db.Eventos.AsNoTracking().OrderBy(e => e.FechaInicio).ToListAsync();
 
 
-        public async Task<Evento> ObtenerEventoPorIdAsync(Guid id) =>
+        public async Task<Evento> ObtenerEventoPorIdAsync(int id) =>
             await db.Eventos.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id);
     }
 }

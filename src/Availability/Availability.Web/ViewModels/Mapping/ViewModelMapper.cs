@@ -16,7 +16,7 @@ public static class ViewModelMapper
 
     private static readonly CultureInfo Es = new("es-AR");
 
-    public static string ReservaHref(Guid eventoId) => $"/Reserva/Asientos/{eventoId}";
+    public static string ReservaHref(int eventoId) => $"/Reserva/Asientos/{eventoId}";
 
     public static EventCardModel ToCard(this EventoDTO e)
     {

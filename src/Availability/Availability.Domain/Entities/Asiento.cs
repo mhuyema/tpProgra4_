@@ -7,7 +7,7 @@ namespace Availability.Domain.Entities
     /// </summary>
     public class Asiento : EntidadBase
     {
-        public Guid EventoId { get; set; }
+        public int EventoId { get; set; }
 
         public Evento? Evento { get; set; }
 

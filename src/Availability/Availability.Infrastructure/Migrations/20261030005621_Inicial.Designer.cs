@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Availability.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261028031305_Inicial")]
+    [Migration("20261030005621_Inicial")]
     partial class Inicial
     {
         /// <inheritdoc />
@@ -27,12 +27,14 @@ namespace Availability.Infrastructure.Migrations
 
             modelBuilder.Entity("Availability.Domain.Entities.Asiento", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("int");
 
-                    b.Property<Guid>("EventoId")
-                        .HasColumnType("uniqueidentifier");
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("EventoId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("FechaCreacion")
                         .HasColumnType("datetime2");
@@ -67,9 +69,11 @@ namespace Availability.Infrastructure.Migrations
 
             modelBuilder.Entity("Availability.Domain.Entities.Evento", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int>("Capacidad")
                         .HasColumnType("int");
@@ -118,43 +122,22 @@ namespace Availability.Infrastructure.Migrations
 
             modelBuilder.Entity("Availability.Domain.Entities.SolicitudReserva", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<Guid>("RequestId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("AsientoId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("AsientoId")
+                        .HasColumnType("int");
 
-                    b.Property<string>("EmailCliente")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<DateTime>("FechaCreacion")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("NombreCliente")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
+                    b.Property<int>("EventoId")
+                        .HasColumnType("int");
 
                     b.Property<string>("UsuarioId")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.HasKey("Id");
-
-                    b.HasIndex("AsientoId");
+                    b.HasKey("RequestId");
 
                     b.ToTable("Solicitudes");
                 });
@@ -168,17 +151,6 @@ namespace Availability.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Evento");
-                });
-
-            modelBuilder.Entity("Availability.Domain.Entities.SolicitudReserva", b =>
-                {
-                    b.HasOne("Availability.Domain.Entities.Asiento", "Asiento")
-                        .WithMany()
-                        .HasForeignKey("AsientoId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Asiento");
                 });
 
             modelBuilder.Entity("Availability.Domain.Entities.Evento", b =>

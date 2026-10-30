@@ -83,3 +83,11 @@ Navbar    Inter Medium
 33. Buenas, borra los comentarios que hablan de arabbitMQ y MassTransit, porque el broker es azure service bus.
 
 34. Las carpetas Availability.Domain, Availability.Application y Availability.Infrastructure quedaron en la raíz del repo, y deberían ir dentro de Availability (como Availability.Web)
+
+35. (2026-10-29) che eliminas la base de datos de availability
+
+36. (2026-10-29) la 2.
+
+37. (2026-10-29) Arma la migracion y hace un update database
+
+38. (2026-10-29) la 1, adaptá la Web a int

@@ -6,14 +6,14 @@ namespace Availability.Domain.Entities
     /// Solicitud de reserva de un asiento, registrada antes de publicarse en el broker.
     /// No guarda estado ni vencimiento.
     /// </summary>
-    public class SolicitudReserva : EntidadBase
+    public class SolicitudReserva
     {
-        public Guid AsientoId { get; set; }
-        public Asiento? Asiento { get; set; }
+        public Guid RequestId { get; set; }
+        
+        public int EventoId { get; set; }
+        public int AsientoId { get; set; }
 
         public string UsuarioId { get; set; } = string.Empty;
-        public string NombreCliente { get; set; } = string.Empty;
-        public string EmailCliente { get; set; } = string.Empty;
-      
+
     }
 }
