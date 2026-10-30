@@ -40,6 +40,13 @@ namespace Booking.Data.Migrations
                     b.Property<int>("EventoId")
                         .HasColumnType("int");
 
+                    b.Property<decimal>("Importe")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid?>("IntentoPagoId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<int?>("Motivo")
                         .HasColumnType("int");
 

@@ -26,6 +26,9 @@ public class BookingDbContext : DbContext
             e.HasIndex(r => new { r.EventoId, r.AsientoId })
             .IsUnique()
             .HasFilter("[Estado] IN (0, 1)"); // Retenida o Confirmada
+
+            // Define la precisión del importe almacenado en SQL Server.
+            e.Property(r => r.Importe).HasPrecision(18, 2);
         });
     }
 }

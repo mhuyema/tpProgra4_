@@ -1,4 +1,11 @@
 ﻿namespace Booking.Business.Messages;
 
-// Contrato del mensaje que Availability publica en el broker.
-public record SolicitudReservaMessage(Guid SolicitudId, int EventoId, int AsientoId, string UsuarioId);
+// Contrato de solicitud de reserva entre Availability y Booking.
+// Amount representa el importe determinado al iniciar la solicitud.
+public record SolicitudReservaMessage(
+    Guid RequestId,
+    int EventId,
+    int SeatId,
+    string UserId,
+    decimal Amount
+);
