@@ -1,7 +1,5 @@
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Storage;
 using Payment.Api.Services;
 using Payment.Api.Infraestructura.Data;
 using Payment.Business.Services;
@@ -28,13 +26,7 @@ using (var scope = app.Services.CreateScope())
     var context = scope.ServiceProvider
         .GetRequiredService<AppDbContext>();
 
-    var databaseCreator = context.Database
-        .GetService<IRelationalDatabaseCreator>();
-
-    if (!await databaseCreator.ExistsAsync())
-    {
-        await databaseCreator.CreateAsync();
-    }
+    await context.Database.MigrateAsync();
 }
 
 app.MapGrpcService<PayGrpcService>();
