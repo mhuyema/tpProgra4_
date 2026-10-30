@@ -1,56 +1,53 @@
+using Booking.Api.Handlers;
+using Booking.Api.Workers;
+using Booking.Business.Services;
+using Booking.Data;
+using Booking.Data.Repositories;
+using Broker.Messaging.Contracts;
+using Broker.Messaging.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
-using Booking.Api.Core;
-using Booking.Api.Infraestructura.Data;
-using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
-
-// Autenticación: este servicio NO emite tokens, solo valida los que emite el servidor de autorización.
-builder.Services.AddAuthentication().AddJwtBearer(opciones =>
-{
-    opciones.MapInboundClaims = false;
-    opciones.Authority = builder.Configuration["Auth:Authority"];
-    opciones.Audience = builder.Configuration["Auth:Audience"];
-    opciones.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
-});
-builder.Services.AddAuthorization();
-
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll", policy =>
-    {
-        policy.AllowAnyOrigin()
-              .AllowAnyHeader()
-              .AllowAnyMethod();
-    });
-});
-
-builder.Services.AddOutputCache(opciones => opciones.DefaultExpirationTimeSpan = TimeSpan.FromMinutes(5));
-
-builder.Services.AddDbContext<AppDbContext>(options =>
+builder.Services.AddDbContext<BookingDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DbConexion")));
+builder.Services.AddScoped<IReservaService, ReservaService>();
+builder.Services.AddScoped<IReservaRepository, ReservaRepository>();
+
+// --- Broker (libreria compartida Broker.Messaging) ---
+// AddBroker registra el ServiceBusClient (singleton). La cadena de conexion NO va en el repo:
+// se lee de la variable de entorno SERVICEBUS_CONNECTION_STRING.
+builder.Services.AddBroker(builder.Configuration);
+
+// Paso 4 del flujo: Booking consume ReservationRequestedMessage desde la suscripcion "booking" del topic.
+// Competing Consumers: todas las replicas de Booking usan la MISMA suscripcion, entonces el broker
+// entrega cada mensaje a una sola. El handler es Scoped (usa DbContext): la libreria crea un scope por mensaje.
+builder.Services.AddScoped<ReservationRequestedHandler>();
+builder.Services.AddBrokerSubscriber<ReservationRequestedMessage, ReservationRequestedHandler>("booking");
+
+// Paso 8 del flujo: vence las reservas Retenidas que superaron su tiempo.
+builder.Services.AddHostedService<ReservaVencimientoWorker>();
 
 var app = builder.Build();
 
+// Aplica las migraciones al arrancar para que el primer mensaje no falle por falta de tablas.
+// Para el TP alcanza; en produccion se migraria como paso aparte del deploy (con varias replicas
+// arrancando a la vez podrian competir).
+using (var scope = app.Services.CreateScope())
+{
+    scope.ServiceProvider.GetRequiredService<BookingDbContext>().Database.Migrate();
+}
+
+// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
-    app.MapScalarApiReference(options =>
-    {
-        options
-            .WithTitle("Booking API")
-            .WithTheme(ScalarTheme.Moon);
-    });
 }
-app.UseMiddleware<ErrorHandlingMiddleware>();
-app.UseHttpsRedirection();
-app.UseOutputCache();
-app.UseCors("AllowAll");
 
-app.UseAuthentication();
+app.UseHttpsRedirection();
+
 app.UseAuthorization();
 
 app.MapControllers();

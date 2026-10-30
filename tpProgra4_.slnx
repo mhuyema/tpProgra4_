@@ -6,9 +6,23 @@
     <Project Path="src/Availability/Availability.Web/Availability.Web.csproj" />
   </Folder>
   <Folder Name="/Booking/">
-    <Project Path="src/Booking/Booking.Api/Booking.Api.csproj" />
+    <Project Path="src/Booking/Booking.Api/Booking.Api.csproj" DisplayName="Booking.API" />
+    <Project Path="src/Booking/Booking.Business/Booking.Business.csproj" />
+    <Project Path="src/Booking/Booking.Data/Booking.Data.csproj" />
+  </Folder>
+  <Folder Name="/Broker/">
+    <Project Path="src/Broker/Broker.Messaging/Broker.Messaging.csproj" />
   </Folder>
   <Folder Name="/Payment/">
     <Project Path="src/Payment/Payment.Api/Payment.Api.csproj" />
+    <Project Path="src/Payment/Payment.Business/Payment.Business.csproj" />
+    <Project Path="src/Payment/Payment.Contracts/Payment.Contracts.csproj" />
+    <Project Path="src/Payment/Payment.Data/Payment.Data.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="tests/Payment.Tests/Payment.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Tools/">
+    <Project Path="tools/Payment.ProtoGenerator/Payment.ProtoGenerator.csproj" />
   </Folder>
 </Solution>

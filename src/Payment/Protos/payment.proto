@@ -1,0 +1,24 @@
+syntax = "proto3";
+package Payment.Contracts;
+import "protobuf-net/bcl.proto"; // schema for protobuf-net's handling of core .NET types
+
+message PayRequest {
+   .bcl.Guid BookingId = 1; // default value could not be applied: 00000000-0000-0000-0000-000000000000
+   .bcl.Decimal Amount = 2;
+   .bcl.Guid PaymentAttemptId = 3; // default value could not be applied: 00000000-0000-0000-0000-000000000000
+}
+message PayResponse {
+   .bcl.Guid BookingId = 1; // default value could not be applied: 00000000-0000-0000-0000-000000000000
+   .bcl.Decimal Amount = 2;
+   .bcl.Guid PaymentId = 3; // default value could not be applied: 00000000-0000-0000-0000-000000000000
+   PaymentStatus Status = 4;
+}
+enum PaymentStatus {
+   UNSPECIFIED = 0;
+   PROCESSING = 1;
+   APPROVED = 2;
+   REJECTED = 3;
+}
+service PaymentGrpcService {
+   rpc Pay (PayRequest) returns (PayResponse);
+}
