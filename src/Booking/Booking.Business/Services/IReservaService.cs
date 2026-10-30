@@ -9,4 +9,7 @@ public interface IReservaService
 
     // Consulta una reserva mediante el identificador generado por Availability.
     Task<Reserva?> ObtenerPorSolicitudAsync(Guid solicitudId);
+
+    // Procesa o retoma el pago de una reserva mediante su identificador de solicitud.
+    Task<Reserva> ProcesarPagoAsync(Guid solicitudId);
 }

@@ -1,16 +1,23 @@
 ﻿using Booking.Business.Messages;
+using Booking.Business.Payments;
 using Booking.Data.Entities;
 using Booking.Data.Repositories;
 
 namespace Booking.Business.Services;
 
 // Dominio anemico: las reglas viven aca, no en la entidad Reserva
-public class  ReservaService : IReservaService
+public class ReservaService : IReservaService
 {
     private static readonly TimeSpan TiempoRetencion = TimeSpan.FromMinutes(5);
     private readonly IReservaRepository _repo;
+    private readonly IPagoGateway _pagoGateway;
 
-    public ReservaService(IReservaRepository repo) => _repo = repo;
+    // Recibe el repositorio y el contrato interno de pagos por inyección de dependencias.
+    public ReservaService(IReservaRepository repo, IPagoGateway pagoGateway)
+    {
+        _repo = repo;
+        _pagoGateway = pagoGateway;
+    }
 
     public async Task<Reserva> ProcesarSolicitudAsync(SolicitudReservaMessage m)
     {
@@ -26,6 +33,7 @@ public class  ReservaService : IReservaService
             EventoId = m.EventId,
             AsientoId = m.SeatId,
             UsuarioId = m.UserId,
+            Importe = m.Amount,
             Estado = EstadoReserva.Retenida,
             CreadaEn = ahora,
             VenceEn = ahora + TiempoRetencion
@@ -45,10 +53,12 @@ public class  ReservaService : IReservaService
             EventoId = m.EventId,
             AsientoId = m.SeatId,
             UsuarioId = m.UserId,
+            Importe = m.Amount,
             Estado = EstadoReserva.Rechazada,
             Motivo = MotivoRechazo.AsientoOcupado,
             CreadaEn = ahora
         };
+
         await _repo.AgregarAsync(rechazada);
         return rechazada;
     }
@@ -57,5 +67,116 @@ public class  ReservaService : IReservaService
     public Task<Reserva?> ObtenerPorSolicitudAsync(Guid solicitudId)
     {
         return _repo.ObtenerPorSolicitudAsync(solicitudId);
+    }
+
+    // Inicia o retoma el pago de una reserva retenida, reutilizando
+    // el identificador del intento previamente almacenado.
+    public async Task<Reserva> ProcesarPagoAsync(Guid solicitudId)
+    {
+        var reserva = await ObtenerYVerificarVencimientoAsync(solicitudId);
+
+        // Solo las reservas retenidas pueden iniciar o continuar un pago.
+        if (reserva.Estado != EstadoReserva.Retenida)
+            return reserva;
+
+        if (reserva.IntentoPagoId is null)
+        {
+            // La asignación es atómica: ante dos procesos simultáneos,
+            // ambos terminarán utilizando el identificador persistido.
+            await _repo.TryAsignarIntentoPagoAsync(
+                reserva.Id,
+                Guid.NewGuid());
+
+            reserva = await ObtenerYVerificarVencimientoAsync(solicitudId);
+
+            if (reserva.Estado != EstadoReserva.Retenida)
+                return reserva;
+        }
+
+        var intentoPagoId = reserva.IntentoPagoId
+            ?? throw new InvalidOperationException(
+                "No se pudo recuperar el identificador del intento de pago.");
+
+        // El identificador y el importe provienen de la reserva persistida.
+        // Ante una falla de comunicación, el intento puede retomarse sin duplicarlo.
+        var resultado = await _pagoGateway.ProcesarPagoAsync(
+            reserva.Id,
+            reserva.Importe,
+            intentoPagoId);
+
+        if (resultado.Estado == EstadoPago.EnProceso)
+            return await ObtenerYVerificarVencimientoAsync(solicitudId);
+
+        // Traduce el resultado del pago a la transición de estado correspondiente.
+        var estadoNuevo = resultado.Estado switch
+        {
+            EstadoPago.Aprobado => EstadoReserva.Confirmada,
+            EstadoPago.Rechazado => EstadoReserva.Rechazada,
+            _ => throw new InvalidOperationException(
+                $"Estado de pago no reconocido: {resultado.Estado}")
+        };
+
+        var motivo = resultado.Estado == EstadoPago.Rechazado
+            ? MotivoRechazo.PagoFallido
+            : (MotivoRechazo?)null;
+
+        await _repo.TryActualizarEstadoAsync(
+            reserva.Id,
+            EstadoReserva.Retenida,
+            estadoNuevo,
+            motivo);
+
+        // Se consulta el estado real porque otro proceso pudo modificarlo.
+        reserva = await ObtenerYVerificarVencimientoAsync(solicitudId);
+
+        // Una aprobación que no pudo confirmarse requiere tratamiento posterior:
+        // no debemos ocultar un posible cobro de una reserva ya vencida.
+        if (resultado.Estado == EstadoPago.Aprobado &&
+            reserva.Estado != EstadoReserva.Confirmada)
+        {
+            throw new InvalidOperationException(
+                "Payment aprobó el pago, pero Booking no pudo confirmar la reserva.");
+        }
+
+        if (resultado.Estado == EstadoPago.Rechazado &&
+            reserva.Estado != EstadoReserva.Rechazada &&
+            reserva.Estado != EstadoReserva.Vencida)
+        {
+            throw new InvalidOperationException(
+                "Booking no pudo registrar el rechazo del pago.");
+        }
+
+        return reserva;
+    }
+
+    // Comprueba el vencimiento antes de continuar con el pago y
+    // recupera el estado persistido si otro proceso modificó la reserva.
+    private async Task<Reserva> ObtenerYVerificarVencimientoAsync(Guid solicitudId)
+    {
+        var reserva = await _repo.ObtenerPorSolicitudAsync(solicitudId)
+            ?? throw new InvalidOperationException(
+                $"No existe una reserva para la solicitud {solicitudId}.");
+
+        if (reserva.Estado != EstadoReserva.Retenida)
+            return reserva;
+
+        if (reserva.VenceEn is null)
+            throw new InvalidOperationException(
+                "La reserva retenida no tiene fecha de vencimiento.");
+
+        if (reserva.VenceEn <= DateTime.UtcNow)
+        {
+            await _repo.TryActualizarEstadoAsync(
+                reserva.Id,
+                EstadoReserva.Retenida,
+                EstadoReserva.Vencida,
+                null);
+
+            reserva = await _repo.ObtenerPorSolicitudAsync(solicitudId)
+                ?? throw new InvalidOperationException(
+                    "No se pudo recuperar la reserva después de verificar su vencimiento.");
+        }
+
+        return reserva;
     }
 }

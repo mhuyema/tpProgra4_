@@ -33,4 +33,48 @@ public class ReservaRepository : IReservaRepository
             return false;
         }
     }
+
+    // Actualiza el estado directamente en SQL mediante una operación atómica.
+    // Impide confirmar una reserva cuyo tiempo de retención ya terminó.
+    public async Task<bool> TryActualizarEstadoAsync(
+        Guid reservaId,
+        EstadoReserva estadoEsperado,
+        EstadoReserva estadoNuevo,
+        MotivoRechazo? motivo)
+    {
+        var ahora = DateTime.UtcNow;
+
+        var filasActualizadas = await _db.Reservas
+            .Where(r =>
+                r.Id == reservaId &&
+                r.Estado == estadoEsperado &&
+                (estadoNuevo != EstadoReserva.Confirmada ||
+                    (r.VenceEn != null && r.VenceEn > ahora)))
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(r => r.Estado, estadoNuevo)
+                .SetProperty(r => r.Motivo, motivo));
+
+        return filasActualizadas == 1;
+    }
+
+    // Registra el intento de pago mediante una actualización atómica.
+    // Evita que dos procesos asignen identificadores diferentes a la misma reserva.
+    public async Task<bool> TryAsignarIntentoPagoAsync(
+        Guid reservaId,
+        Guid intentoPagoId)
+    {
+        var ahora = DateTime.UtcNow;
+
+        var filasActualizadas = await _db.Reservas
+            .Where(r =>
+                r.Id == reservaId &&
+                r.Estado == EstadoReserva.Retenida &&
+                r.VenceEn != null &&
+                r.VenceEn > ahora &&
+                r.IntentoPagoId == null)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(r => r.IntentoPagoId, (Guid?)intentoPagoId));
+
+        return filasActualizadas == 1;
+    }
 }

@@ -1,10 +1,11 @@
 ﻿namespace Booking.Business.Messages;
 
-// Se actualizaron los nombres de las propiedades para coincidir
-// con el contrato acordado entre Availability, Broker y Booking.
+// Contrato de solicitud de reserva entre Availability y Booking.
+// Amount representa el importe determinado al iniciar la solicitud.
 public record SolicitudReservaMessage(
     Guid RequestId,
     int EventId,
     int SeatId,
-    string UserId
+    string UserId,
+    decimal Amount
 );
