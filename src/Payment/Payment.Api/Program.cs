@@ -1,5 +1,9 @@
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using Payment.Api.Services;
+using Payment.Api.Infraestructura.Data;
 using Payment.Business.Services;
 using Payment.Data.Repositories;
 using ProtoBuf.Grpc.Server;
@@ -13,7 +17,26 @@ builder.Services.AddCodeFirstGrpc();
 builder.Services.AddSingleton<IPaymentRepository, PaymentRepository>();
 builder.Services.AddSingleton<IPaymentService, PaymentService>();
 
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DbConexion")));
+
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider
+        .GetRequiredService<AppDbContext>();
+
+    var databaseCreator = context.Database
+        .GetService<IRelationalDatabaseCreator>();
+
+    if (!await databaseCreator.ExistsAsync())
+    {
+        await databaseCreator.CreateAsync();
+    }
+}
+
 app.MapGrpcService<PayGrpcService>();
 app.Run();
 
