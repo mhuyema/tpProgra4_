@@ -5,11 +5,32 @@ namespace Booking.Data.Repositories;
 public interface IReservaRepository
 {
     Task<Reserva?> ObtenerPorSolicitudAsync(Guid solicitudId);
+
     Task AgregarAsync(Reserva reserva);
-    // False = el asiento ya tiene una reserva activa
+
     Task<bool> TryAgregarRetenidaAsync(Reserva reserva);
-    // Cambio de estado condicional: solo si la reserva sigue en "desde". False = alguien la cambio antes
-    Task<bool> TransicionarAsync(Guid reservaId, EstadoReserva desde, EstadoReserva hacia, MotivoRechazo? motivo = null);
-    // Pasa a Vencida todas las Retenidas con VenceEn < ahoraUtc. Devuelve cuantas vencio
-    Task<int> VencerRetenidasAsync(DateTime ahoraUtc);
+
+    Task<bool> TryActualizarEstadoAsync(
+        Guid reservaId,
+        EstadoReserva estadoEsperado,
+        EstadoReserva estadoNuevo,
+        MotivoRechazo? motivo);
+
+    Task<bool> TryAsignarIntentoPagoAsync(
+        Guid reservaId,
+        Guid intentoPagoId);
+
+    Task<bool> TransicionarAsync(
+        Guid reservaId,
+        EstadoReserva desde,
+        EstadoReserva hacia,
+        MotivoRechazo? motivo = null);
+
+    // Devuelve únicamente las reservas cuyo vencimiento se aplicó
+    // correctamente, incluyendo sus identificadores para auditoría.
+    Task<IReadOnlyList<(Guid ReservaId, Guid SolicitudId)>>
+        VencerRetenidasAsync(DateTime ahoraUtc);
+
+    Task<IReadOnlyList<Guid>> ObtenerSolicitudesConPagoPendienteAsync(
+        DateTime ahoraUtc);
 }

@@ -1,0 +1,71 @@
+# Levanta todo el sistema: docker compose up --build
+# Requiere un .env en la raíz (ver .env.example) con SERVICEBUS_CONNECTION_STRING y SA_PASSWORD.
+name: tp-reservas
+
+services:
+  # Una sola instancia de SQL Server con una base por servicio (BookingDb, PaymentDb):
+  # cada microservicio es dueño de su base y no accede a la del otro, pero no hacen falta 3 contenedores.
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD:?definir SA_PASSWORD en .env}
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqldata:/var/opt/mssql
+    healthcheck:
+      test: /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -Q "SELECT 1" || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  payment:
+    build:
+      context: .
+      args:
+        PROJECT: src/Payment/Payment.Api
+        ASSEMBLY: Payment.Api
+    environment:
+      ConnectionStrings__DbConexion: "Server=sqlserver;Database=PaymentDb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True"
+    ports:
+      - "5087:8080" # gRPC (HTTP/2 sin TLS)
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+
+  booking:
+    build:
+      context: .
+      args:
+        PROJECT: src/Booking/Booking.Api
+        ASSEMBLY: Booking.Api
+    environment:
+      ConnectionStrings__DbConexion: "Server=sqlserver;Database=BookingDb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True"
+      # Dentro de la red del compose Payment se resuelve por nombre de servicio.
+      Payment__GrpcUrl: http://payment:8080
+      SERVICEBUS_CONNECTION_STRING: ${SERVICEBUS_CONNECTION_STRING:?definir SERVICEBUS_CONNECTION_STRING en .env}
+    ports:
+      - "5295:8080"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      payment:
+        condition: service_started
+
+  availability:
+    build:
+      context: .
+      args:
+        PROJECT: src/Availability/Availability.Web
+        ASSEMBLY: Availability.Web
+    environment:
+      SERVICEBUS_CONNECTION_STRING: ${SERVICEBUS_CONNECTION_STRING:?definir SERVICEBUS_CONNECTION_STRING en .env}
+    ports:
+      - "5269:8080"
+    depends_on:
+      - booking
+
+volumes:
+  sqldata:

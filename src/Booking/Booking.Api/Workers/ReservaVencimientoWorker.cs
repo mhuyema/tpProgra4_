@@ -29,11 +29,35 @@ public class ReservaVencimientoWorker : BackgroundService
         {
             do
             {
+                // Cada barrido recibe un identificador propio para relacionar
+                // sus registros de inicio, finalización y posibles errores.
+                // No se utiliza CorrelationId porque un barrido puede
+                // procesar varias solicitudes con identificadores diferentes.
+                var barridoId = Guid.NewGuid();
+
+                using var logScope = _logger.BeginScope(
+                    new Dictionary<string, object>
+                    {
+                        ["BarridoId"] = barridoId
+                    });
+
                 try
                 {
+                    _logger.LogInformation(
+                        "[AUDITORIA] INICIO de barrido de vencimientos. BarridoId={BarridoId}",
+                        barridoId);
+
                     using var scope = _scopeFactory.CreateScope();
                     var service = scope.ServiceProvider.GetRequiredService<IReservaService>();
-                    await service.VencerReservasAsync();
+
+                    // El servicio registra individualmente cada vencimiento
+                    // aplicado, utilizando SolicitudId y ReservaId.
+                    var cantidad = await service.VencerReservasAsync();
+
+                    _logger.LogInformation(
+                        "[AUDITORIA] FIN de barrido de vencimientos. BarridoId={BarridoId} CantidadVencidas={Cantidad}",
+                        barridoId,
+                        cantidad);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
