@@ -9,7 +9,8 @@ using Notifications.Api.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 // Broker (libreria compartida Broker.Messaging). La cadena de conexion NO va en el repo:
-// se lee de la variable de entorno SERVICEBUS_CONNECTION_STRING.
+// se lee de Broker:ConnectionString (User Secrets) o, si no esta la variable de entorno
+// SERVICEBUS_CONNECTION_STRING (la que usa el docker-compose)
 builder.Services.AddBroker(builder.Configuration);
 
 // Estado en memoria y "canal" de envio. Son singleton porque los handlers se crean uno por mensaje.
