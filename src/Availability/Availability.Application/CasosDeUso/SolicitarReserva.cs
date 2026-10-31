@@ -34,7 +34,7 @@ namespace Availability.Application.CasosDeUso
                     AsientoId = idAsiento,
                     UsuarioId = IdUsuario,
                     EventoId = IdEvento,
-
+                    Monto = asiento.Precio,
                 });
             }
 

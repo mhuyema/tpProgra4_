@@ -15,5 +15,6 @@ namespace Availability.Domain.Entities
 
         public string UsuarioId { get; set; } = string.Empty;
 
+        public decimal Monto { get; set; }
     }
 }

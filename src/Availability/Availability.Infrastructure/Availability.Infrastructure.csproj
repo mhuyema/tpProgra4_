@@ -7,11 +7,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Broker\Broker.Messaging\Broker.Messaging.csproj" />
     <ProjectReference Include="..\Availability.Application\Availability.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Broker\" />
     <Folder Include="Servicios\" />
   </ItemGroup>
 
