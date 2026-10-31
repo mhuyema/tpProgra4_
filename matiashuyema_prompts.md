@@ -131,3 +131,13 @@ Navbar    Inter Medium
 57. (2026-10-31) Agrega un boton cerrar sesion asi puedo simular el cierre
 
 58. (2026-10-31) bueno ahora inicio sesion pero me volvio a tirar un 404 cuando puse confirmar reserva.
+
+59. (2026-10-31) Che me da banda de errores cuando compila porque?
+
+60. (2026-10-31) Matalos vos
+
+61. (2026-10-31) Necesito conectar la consulta de asientos disponibles para que cuando el usuario cargue (sin identificacion) la pagina del evento correspondiente le aparezcan marcados que eventos estan disponibles y cuales no. Para eso necesito cablear la Availability.Application (en el caso de uso ConsultarAsientosLibres) con el controller y la vista correspondiente de mi Availability.web
+
+62. (2026-10-31) (respuesta a preguntas) Contrato: "No, pero lo que podes hacer ahi, es un metodo auxiliar, no tengo claro si en una clase aparte que lo que haga sea en base al id del asiento consultar la fila y demas, para que con eso deduzca con la informacion propia que ya tengo, y que devuelva una lista de asientos de ultima al a vista me explico_". Booking: "espera que lo integra otra persona".
+
+63. (2026-10-31) Sí, hacé que degrade a todo libre

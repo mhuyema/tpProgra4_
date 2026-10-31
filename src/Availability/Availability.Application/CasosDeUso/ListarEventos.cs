@@ -18,7 +18,7 @@ namespace Availability.Application.CasosDeUso
             {
                 var ocupados = await consultaReservas.ObtenerAsientosOcupadosAsync(e.Id);
                 resultado.Add(new EventoDTO(e.Id, e.Nombre, e.Descripcion, e.Lugar, e.FechaInicio, e.FechaFin,
-                    e.ImageUrl, Math.Max(0, e.Capacidad - ocupados.Count)));
+                    e.ImageUrl, Math.Max(0, e.Capacidad - ocupados.AsientosOcupados.Count)));
             }
 
             return resultado;

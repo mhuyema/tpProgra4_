@@ -1,27 +1,33 @@
-﻿using Availability.Application.DTOs;
-using Availability.Application.Interfaces;
+﻿using Availability.Application.Interfaces;
 
 
 namespace Availability.Application.CasosDeUso
 {
     /// <summary>
-    /// Caso de uso: ver los asientos de un evento, marcando cuáles están ocupados (paso 1, sin login).
+    /// Caso de uso: obtener los IDs de los asientos libres de un evento (paso 1, sin login).
     /// Availability conoce el catálogo; la ocupación es de Booking y se le consulta.
     /// </summary>
-    public class ConsultarAsientosLibres(IEventoRepositorio eventoRepositorio, IAsientoRepositorio asientoRepositorio, IConsultaReservas consultaReservas) 
+    public class ConsultarAsientosLibres(
+        IEventoRepositorio eventoRepositorio,
+        IAsientoRepositorio asientoRepositorio,
+        IConsultaReservas consultaReservas)
     {
-        public async Task<List<AsientoDTO>> EjecutarAsync(int eventoId)
+        public async Task<List<int>> EjecutarAsync(int eventoId)
         {
-            _ = await eventoRepositorio.ObtenerEventoPorIdAsync(eventoId)
-                ?? throw new Exception("El evento no existe.");
+            var evento = await eventoRepositorio.ObtenerEventoPorIdAsync(eventoId);
+            if (evento is null) throw new Exception("El evento no existe.");
 
-            var todos = await asientoRepositorio.ListarPorEventoAsync(eventoId);
-            var ocupados = await consultaReservas.ObtenerAsientosOcupadosAsync(eventoId);
+            var catalogo = await asientoRepositorio.ListarPorEventoAsync(eventoId);
+            var response = await consultaReservas.ObtenerAsientosOcupadosAsync(eventoId);
 
-            return todos
-                .Select(a => new AsientoDTO(a.Id, a.Fila, a.Numero, a.Precio, ocupados.Contains(a.Id)))
+            var idsOcupados = response.AsientosOcupados
+                .Select(a => a.AsientoId)
+                .ToHashSet();
+
+            return catalogo
+                .Select(a => a.Id)
+                .Where(id => !idsOcupados.Contains(id))
                 .ToList();
         }
-
     }
 }

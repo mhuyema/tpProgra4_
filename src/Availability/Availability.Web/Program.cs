@@ -1,4 +1,5 @@
 using Availability.Application.CasosDeUso;
+using Availability.Application.Servicios;
 using Availability.Infrastructure.Data;
 using Broker.Messaging.DependencyInjection;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -26,6 +27,7 @@ builder.Services.AddBrokerPublisher();
 builder.Services.AddScoped<ListarEventos>();
 builder.Services.AddScoped<ObtenerEvento>();
 builder.Services.AddScoped<ConsultarAsientosLibres>();
+builder.Services.AddScoped<ArmadorMapaAsientos>();
 builder.Services.AddScoped<SolicitarReserva>();
 builder.Services.AddScoped<ConsultarEstadoSolicitud>();
 

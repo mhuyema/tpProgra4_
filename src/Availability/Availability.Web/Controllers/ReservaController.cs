@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Availability.Application.CasosDeUso;
+using Availability.Application.Servicios;
 using Availability.Web.Models;
 using Availability.Web.Models.Mapping;
 
@@ -10,6 +11,7 @@ namespace Availability.Web.Controllers;
 public class ReservaController(
     ObtenerEvento obtenerEvento,
     ConsultarAsientosLibres consultarAsientos,
+    ArmadorMapaAsientos armadorMapa,
     SolicitarReserva solicitarReserva,
     ConsultarEstadoSolicitud consultarEstado) : Controller
 {
@@ -21,7 +23,8 @@ public class ReservaController(
         var evento = await obtenerEvento.EjecutarAsync(id);
         if (evento is null) return NotFound();
 
-        var asientos = await consultarAsientos.EjecutarAsync(id);
+        var idsLibres = await consultarAsientos.EjecutarAsync(id);
+        var asientos = await armadorMapa.ArmarAsync(id, idsLibres);
         var autenticado = User.Identity?.IsAuthenticated == true;
 
         // Si venía de iniciar sesión (o de un intento fallido), se restaura la selección que había hecho.

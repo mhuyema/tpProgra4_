@@ -18,7 +18,6 @@ namespace Availability.Infrastructure.Servicios
                 $"solicitudes/{solicitudId}"
             );
 
-            // Booking procesa la solicitud de forma asíncrona (broker): un 404 significa "todavía no la procesó".
             if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                 return new EstadoSolicitudDTO(solicitudId, "Pendiente", null);
 
@@ -35,17 +34,21 @@ namespace Availability.Infrastructure.Servicios
         // Contrato de Booking (EstadoSolicitudResponse); se traduce a EstadoSolicitudDTO.
         private record RespuestaBooking(Guid RequestId, string Status, string? RejectionReason);
 
-        public async Task<List<int>> ObtenerAsientosOcupadosAsync(int eventoId)
+        public async Task<AsientosOcupadosResponseDTO> ObtenerAsientosOcupadosAsync(int eventoId)
         {
-            // TEMPORAL: Booking todavía no expone eventos/{id}/asientos-ocupados; se devuelve vacío hasta que exista.
-            //var response = await _httpClient.GetAsync(
-            //    $"eventos/{eventoId}/asientos-ocupados"
-            //);
-            //response.EnsureSuccessStatusCode();
-            //var asientosOcupados = await response.Content
-            //    .ReadFromJsonAsync<List<int>>();
-            //return asientosOcupados ?? new List<int>();
-            return await Task.FromResult(new List<int>());
+            var response = await _httpClient.GetAsync(
+                $"eventos/{eventoId}/asientos-ocupados"
+            );
+
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                return new AsientosOcupadosResponseDTO();
+
+            response.EnsureSuccessStatusCode();
+
+            var asientosOcupados = await response.Content
+                .ReadFromJsonAsync<AsientosOcupadosResponseDTO>();
+
+            return asientosOcupados ?? new AsientosOcupadosResponseDTO();
         }
     }
 }
