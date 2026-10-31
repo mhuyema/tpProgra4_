@@ -6,10 +6,6 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG PROJECT
 WORKDIR /repo
 COPY src/ src/
-# En el repo hay archivos de Booking en src/Booking/Booking.API (mayúsculas) y el .csproj está en Booking.Api.
-# En Windows son la misma carpeta; en Linux no, y Booking no compila. Se unifican solo dentro de la imagen
-# para no tocar el repo: cuando el equipo corrija el nombre de la carpeta, este paso deja de hacer falta.
-RUN if [ -d src/Booking/Booking.API ]; then mkdir -p src/Booking/Booking.Api && cp -r src/Booking/Booking.API/. src/Booking/Booking.Api/; fi
 # Cache de NuGet compartido entre builds: los paquetes no se re-descargan al cambiar código.
 RUN --mount=type=cache,target=/root/.nuget/packages \
     dotnet publish "$PROJECT" -c Release -o /app --nologo
