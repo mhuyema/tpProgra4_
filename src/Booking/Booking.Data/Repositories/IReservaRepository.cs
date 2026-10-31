@@ -1,3 +1,4 @@
+
 using Booking.Data.Entities;
 
 namespace Booking.Data.Repositories;
@@ -5,6 +6,13 @@ namespace Booking.Data.Repositories;
 public interface IReservaRepository
 {
     Task<Reserva?> ObtenerPorSolicitudAsync(Guid solicitudId);
+
+    // Consulta los identificadores de los asientos ocupados de un evento.
+    // Considera las reservas Confirmadas y las Retenidas que siguen vigentes.
+    // El filtrado se realiza directamente en SQL Server.
+    Task<IReadOnlyList<int>> ObtenerAsientosOcupadosPorEventoAsync(
+        int eventoId,
+        DateTime ahoraUtc);
 
     Task AgregarAsync(Reserva reserva);
 
