@@ -1,5 +1,6 @@
 using Payment.Business.Exceptions;
 using Payment.Business.Services;
+using Payment.Data;
 using Payment.Data.Entities;
 using Payment.Data.Repositories;
 using Xunit;
@@ -7,10 +8,20 @@ using PaymentEntity = Payment.Data.Entities.Payment;
 
 namespace Payment.Tests;
 
-public sealed class PaymentServiceTests
+[Collection(PaymentDatabaseCollection.Name)]
+public sealed class PaymentServiceTests : IDisposable
 {
-    private readonly PaymentRepository _repository = new();
+    private readonly PaymentDatabaseFixture _database;
+    private readonly AppDbContext _db;
+    private readonly PaymentRepository _repository;
     private PaymentService Service => new(_repository);
+
+    public PaymentServiceTests(PaymentDatabaseFixture database)
+    {
+        _database = database;
+        _db = database.CreateDbContext();
+        _repository = new PaymentRepository(_db);
+    }
 
     [Theory]
     [InlineData("25.37", PaymentStatus.APPROVED)]
@@ -83,11 +94,15 @@ public sealed class PaymentServiceTests
     [Fact]
     public async Task ConcurrentRepeatedCallsCreateOnePayment()
     {
-        var service = Service;
         var booking = Guid.NewGuid();
         var attempt = Guid.NewGuid();
         var payments = await Task.WhenAll(Enumerable.Range(0, 100)
-            .Select(_ => Task.Run(() => service.PayAsync(booking, 10, attempt))));
+            .Select(_ => Task.Run(async () =>
+            {
+                using var db = _database.CreateDbContext();
+                var service = new PaymentService(new PaymentRepository(db));
+                return await service.PayAsync(booking, 10, attempt);
+            })));
         var stored = Assert.Single(_repository.GetPaymentByBookingId(booking));
         Assert.All(payments, p => Assert.Equal(stored.PaymentId, p.PaymentId));
         Assert.Equal(PaymentStatus.APPROVED, stored.Status);
@@ -96,14 +111,17 @@ public sealed class PaymentServiceTests
     [Fact]
     public async Task ConcurrentDifferentAttemptsHaveOneWinner()
     {
-        var service = Service;
         var booking = Guid.NewGuid();
         var results = await Task.WhenAll(Enumerable.Range(0, 100).Select(_ => Task.Run(async () =>
         {
+            using var db = _database.CreateDbContext();
+            var service = new PaymentService(new PaymentRepository(db));
             try { await service.PayAsync(booking, 10, Guid.NewGuid()); return true; }
             catch (PaymentConflictException) { return false; }
         })));
         Assert.Equal(1, results.Count(success => success));
         Assert.Single(_repository.GetPaymentByBookingId(booking));
     }
+
+    public void Dispose() => _db.Dispose();
 }

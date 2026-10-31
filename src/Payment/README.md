@@ -78,8 +78,29 @@ La simulación asíncrona no agrega demoras artificiales ni cancela el pago si e
 desconecta después de crearlo.
 
 El contrato gRPC conserva sus mensajes, estados y códigos de error.
-Las pruebas previas basadas en el constructor sin dependencias del repositorio en memoria
-requieren adaptación a SQL; no se modificaron ni ejecutaron en este cambio.
+
+## Pruebas automatizadas
+
+Desde la raíz de la solución:
+
+```powershell
+dotnet test tests/Payment.Tests/Payment.Tests.csproj -c Release
+```
+
+Las pruebas de repositorio, servicio y gRPC usan SQL Server real. Por defecto se conectan
+a `(localdb)\MSSQLLocalDB` con autenticación de Windows. Para usar otra instancia,
+configurar `PAYMENT_TEST_SQL_CONNECTION_STRING` con la conexión al servidor de pruebas.
+El usuario de esa conexión debe poder crear y eliminar bases.
+
+Cada corrida crea una base `PaymentTests_<guid>`, aplica las migraciones y la elimina
+al terminar. El nombre de base indicado en la conexión se reemplaza siempre por el
+nombre temporal; las pruebas no usan PaymentDb. Cada caso utiliza identificadores
+nuevos y cada llamada concurrente tiene su propio contexto, repositorio y servicio.
+La aplicación de pruebas gRPC recibe la conexión temporal antes de iniciar.
+
+Los casos de idempotencia usan importes con hasta dos decimales, de acuerdo con
+`decimal(18,2)`. La política de rechazo o normalización de importes con más decimales
+queda pendiente de definir en el servicio; estas pruebas no establecen esa política.
 
 ## Generar el .proto y probar desde VS Code
 

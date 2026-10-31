@@ -1,26 +1,28 @@
 using Grpc.Core;
 using Grpc.Net.Client;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Payment.Contracts;
 using ProtoBuf.Grpc.Client;
 using Xunit;
 
 namespace Payment.Tests;
 
-public sealed class PaymentGrpcTests : IClassFixture<WebApplicationFactory<Program>>, IDisposable
+[Collection(PaymentDatabaseCollection.Name)]
+public sealed class PaymentGrpcTests : IDisposable
 {
+    private readonly PaymentWebApplicationFactory _factory;
     private readonly GrpcChannel _channel;
     private readonly IPaymentGrpcService _client;
 
-    public PaymentGrpcTests(WebApplicationFactory<Program> factory)
+    public PaymentGrpcTests(PaymentDatabaseFixture database)
     {
+        _factory = new PaymentWebApplicationFactory(database.ConnectionString);
         _channel = GrpcChannel.ForAddress("http://localhost", new GrpcChannelOptions
-        { HttpHandler = factory.Server.CreateHandler() });
+        { HttpHandler = _factory.Server.CreateHandler() });
         _client = _channel.CreateGrpcService<IPaymentGrpcService>();
     }
 
     [Theory]
-    [InlineData("123.4567", PaymentStatus.APPROVED)]
+    [InlineData("123.45", PaymentStatus.APPROVED)]
     [InlineData("0", PaymentStatus.REJECTED)]
     [InlineData("-0.01", PaymentStatus.REJECTED)]
     public async Task GrpcClientRoundTripsAndReusesAttempt(string value, PaymentStatus status)
@@ -82,5 +84,9 @@ public sealed class PaymentGrpcTests : IClassFixture<WebApplicationFactory<Progr
         Assert.Equal(PaymentStatus.APPROVED, final.Status);
     }
 
-    public void Dispose() => _channel.Dispose();
+    public void Dispose()
+    {
+        _channel.Dispose();
+        _factory.Dispose();
+    }
 }
