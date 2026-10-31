@@ -119,3 +119,15 @@ Navbar    Inter Medium
 51. (2026-10-31) Levantas los proyectos
 
 52. (2026-10-31) killea todos los proyectos y levantalos de nuevo.
+
+53. (2026-10-31) me anda mal en la redireccion cuando pongo confirmar me marca como que no hay vista para esa redireccion cuando apreto confirmar reserva.
+
+54. (2026-10-31) reiniciá availability y probalo
+
+55. (2026-10-31) Arregla el puerto
+
+56. (2026-10-31) Ahora me confirma directamente la reserva pero no me salta el cartel de login.
+
+57. (2026-10-31) Agrega un boton cerrar sesion asi puedo simular el cierre
+
+58. (2026-10-31) bueno ahora inicio sesion pero me volvio a tirar un 404 cuando puse confirmar reserva.

@@ -42,7 +42,7 @@ namespace Availability.Infrastructure.Data
             services.AddScoped<ISolicitudReservaRepositorio, SolicitudReservaRepositorio>();
             services.AddHttpClient<IConsultaReservas, BookingService>(client =>
             {
-                client.BaseAddress = new Uri("https://localhost:5001/api/reservas/");
+                client.BaseAddress = new Uri(config["Booking:BaseUrl"] ?? "http://localhost:5295/api/reservas/");
             });
 
             return services;

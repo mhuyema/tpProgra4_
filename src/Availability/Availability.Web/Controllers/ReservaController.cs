@@ -82,7 +82,9 @@ public class ReservaController(
                 model.EventoId, model.AsientoIds,
                 User.Id(), User.Nombre(), User.Email());
 
-            return RedirectToAction(nameof(Estado), new { eventoId = model.EventoId, ids = solicitudes });
+            // RouteValues no serializa colecciones (daría "ids=System.Collections...Guid]"): se arma ids=a&ids=b a mano.
+            var query = string.Join("&", solicitudes.Select(s => $"ids={s}"));
+            return Redirect($"{Url.Action(nameof(Estado), new { eventoId = model.EventoId })}&{query}");
         }
         catch (Exception ex)
         {

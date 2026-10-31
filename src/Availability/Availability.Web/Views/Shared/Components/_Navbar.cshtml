@@ -1,7 +1,8 @@
-@using Availability.Web.Models.Components
+﻿@using Availability.Web.Models.Components
 @model NavbarModel
 @{
     var current = ViewContext.RouteData.Values["controller"]?.ToString();
+    var logout = new ButtonModel("Cerrar sesión", Variant: ButtonVariant.Secondary, Type: "submit");
 }
 <nav class="bombo-nav">
     <div class="bombo-nav__inner">
@@ -28,7 +29,13 @@
                 <li><a class="bombo-nav__link@(active ? " bombo-nav__link--active" : "")" asp-controller="@link.Controller" asp-action="@link.Action">@link.Text</a></li>
             }
         </ul>
-        @if (Model.Login is not null)
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            <form class="bombo-nav__login" method="post" asp-controller="Cuenta" asp-action="Logout">
+                <partial name="Components/_Button" model="logout" />
+            </form>
+        }
+        else if (Model.Login is not null)
         {
             <div class="bombo-nav__login">
                 <partial name="Components/_Button" model="Model.Login" />

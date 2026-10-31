@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using Availability.Web.Models;
 
@@ -19,6 +21,14 @@ public class CuentaController : Controller
         if (!string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
             return LocalRedirect(model.ReturnUrl);
 
+        return RedirectToAction("Index", "Home");
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Logout()
+    {
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        HttpContext.Session.Remove("ReservaPendiente");
         return RedirectToAction("Index", "Home");
     }
 

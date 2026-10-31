@@ -18,15 +18,22 @@ namespace Availability.Infrastructure.Servicios
                 $"solicitudes/{solicitudId}"
             );
 
+            // Booking procesa la solicitud de forma asíncrona (broker): un 404 significa "todavía no la procesó".
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                return new EstadoSolicitudDTO(solicitudId, "Pendiente", null);
+
             response.EnsureSuccessStatusCode();
 
             var estado = await response.Content
-                .ReadFromJsonAsync<EstadoSolicitudDTO>();
+                .ReadFromJsonAsync<RespuestaBooking>();
 
-            return estado ?? throw new Exception(
-                "No se pudo obtener el estado de la solicitud."
-            );
+            return estado is null
+                ? throw new Exception("No se pudo obtener el estado de la solicitud.")
+                : new EstadoSolicitudDTO(estado.RequestId, estado.Status, estado.RejectionReason);
         }
+
+        // Contrato de Booking (EstadoSolicitudResponse); se traduce a EstadoSolicitudDTO.
+        private record RespuestaBooking(Guid RequestId, string Status, string? RejectionReason);
 
         public async Task<List<int>> ObtenerAsientosOcupadosAsync(int eventoId)
         {
