@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Libreria compartida del grupo: contratos de los avisos y suscriptor de Service Bus -->
+    <ProjectReference Include="..\..\Broker\Broker.Messaging\Broker.Messaging.csproj" />
+  </ItemGroup>
+
+</Project>

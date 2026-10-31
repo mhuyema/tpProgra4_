@@ -3,7 +3,7 @@
     <Project Path="src/Availability/Availability.Web/Availability.Web.csproj" />
   </Folder>
   <Folder Name="/Booking/">
-    <Project Path="src/Booking/Booking.Api/Booking.Api.csproj" DisplayName="Booking.API" />
+    <Project Path="src/Booking/Booking.Api/Booking.Api.csproj" />
     <Project Path="src/Booking/Booking.Business/Booking.Business.csproj" />
     <Project Path="src/Booking/Booking.Data/Booking.Data.csproj" />
   </Folder>
@@ -22,4 +22,5 @@
   <Folder Name="/Tools/">
     <Project Path="tools/Payment.ProtoGenerator/Payment.ProtoGenerator.csproj" />
   </Folder>
+  <Project Path="src/Notifications/Notifications.Api/Notifications.Api.csproj" />
 </Solution>
