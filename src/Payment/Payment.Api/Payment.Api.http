@@ -13,8 +13,8 @@ enums: String
 # @name approve
 GRPC {{server}}/Payment.Contracts.PaymentGrpcService/Pay
 {
-  "BookingId": { "lo": "1", "hi": "0" },
-  "PaymentAttemptId": { "lo": "101", "hi": "0" },
+  "BookingId": { "lo": "24133332344", "hi": "0" },
+  "PaymentAttemptId": { "lo": "4q44323221147", "hi": "0" },
   "Amount": { "lo": "15075", "hi": 0, "signScale": 4 }
 }
 

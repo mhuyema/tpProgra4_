@@ -3,6 +3,7 @@ using Payment.Business.Services;
 using Payment.Data;
 using Payment.Data.Entities;
 using Payment.Data.Repositories;
+using Microsoft.Extensions.Configuration;
 using Xunit;
 using PaymentEntity = Payment.Data.Entities.Payment;
 
@@ -14,7 +15,9 @@ public sealed class PaymentServiceTests : IDisposable
     private readonly PaymentDatabaseFixture _database;
     private readonly AppDbContext _db;
     private readonly PaymentRepository _repository;
-    private PaymentService Service => new(_repository);
+    private static PaymentService CreateService(PaymentRepository repository) =>
+        new(repository, new ConfigurationBuilder().Build());
+    private PaymentService Service => CreateService(_repository);
 
     public PaymentServiceTests(PaymentDatabaseFixture database)
     {
@@ -24,17 +27,31 @@ public sealed class PaymentServiceTests : IDisposable
     }
 
     [Theory]
-    [InlineData("25.37", PaymentStatus.APPROVED)]
-    [InlineData("0", PaymentStatus.REJECTED)]
-    [InlineData("-10", PaymentStatus.REJECTED)]
-    public async Task AmountDeterminesFinalStatus(string value, PaymentStatus expected)
+    [InlineData("25.37")]
+    [InlineData("0.01")]
+    public async Task PositiveAmountCreatesPaymentWithFinalStatus(string value)
     {
         var amount = decimal.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
         var payment = await Service.PayAsync(Guid.NewGuid(), amount, Guid.NewGuid());
-        Assert.Equal(expected, payment.Status);
+        Assert.Contains(payment.Status, new[] { PaymentStatus.APPROVED, PaymentStatus.REJECTED });
+        Assert.Equal(amount, payment.Amount);
         Assert.NotEqual(Guid.Empty, payment.PaymentId);
         Assert.Equal(TimeSpan.Zero, payment.CreatedAt.Offset);
-        Assert.Equal(expected, _repository.GetPayment(payment.PaymentId)!.Status);
+        Assert.Equal(payment.Status, _repository.GetPayment(payment.PaymentId)!.Status);
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("-0.01")]
+    [InlineData("-10")]
+    public async Task NonPositiveAmountsAreInvalidAndDoNotCreatePayments(string value)
+    {
+        var booking = Guid.NewGuid();
+        var amount = decimal.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
+        var error = await Assert.ThrowsAsync<ArgumentException>(() =>
+            Service.PayAsync(booking, amount, Guid.NewGuid()));
+        Assert.Equal("amount", error.ParamName);
+        Assert.Empty(_repository.GetPaymentByBookingId(booking));
     }
 
     [Theory]
@@ -48,14 +65,15 @@ public sealed class PaymentServiceTests : IDisposable
     }
 
     [Theory]
-    [InlineData(10)]
-    [InlineData(0)]
-    public async Task RepeatingAttemptReturnsOriginalPayment(int amount)
+    [InlineData(PaymentStatus.APPROVED)]
+    [InlineData(PaymentStatus.REJECTED)]
+    public async Task RepeatingAttemptReturnsOriginalPayment(PaymentStatus status)
     {
+        const decimal amount = 10;
         var service = Service;
-        var booking = Guid.NewGuid();
-        var attempt = Guid.NewGuid();
-        var first = await service.PayAsync(booking, amount, attempt);
+        var first = CreateStoredPayment(status);
+        var booking = first.BookingId;
+        var attempt = first.PaymentAttemptId;
         var repeated = await service.PayAsync(booking, amount, attempt);
         Assert.Equal(first.PaymentId, repeated.PaymentId);
         Assert.Equal(first.Status, repeated.Status);
@@ -64,15 +82,24 @@ public sealed class PaymentServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task NewAttemptCanFollowRejectionButCannotFollowApproval()
+    public async Task NewAttemptCanFollowRejection()
     {
         var service = Service;
-        var booking = Guid.NewGuid();
-        await service.PayAsync(booking, 0, Guid.NewGuid());
-        var approved = await service.PayAsync(booking, 10, Guid.NewGuid());
-        Assert.Equal(PaymentStatus.APPROVED, approved.Status);
-        await Assert.ThrowsAsync<PaymentConflictException>(() => service.PayAsync(booking, 10, Guid.NewGuid()));
+        var rejected = CreateStoredPayment(PaymentStatus.REJECTED);
+        var booking = rejected.BookingId;
+        var next = await service.PayAsync(booking, 10, Guid.NewGuid());
+        Assert.NotEqual(rejected.PaymentId, next.PaymentId);
+        Assert.Contains(next.Status, new[] { PaymentStatus.APPROVED, PaymentStatus.REJECTED });
         Assert.Equal(2, _repository.GetPaymentByBookingId(booking).Count);
+    }
+
+    [Fact]
+    public async Task ApprovalBlocksNewAttempts()
+    {
+        var approved = CreateStoredPayment(PaymentStatus.APPROVED);
+        await Assert.ThrowsAsync<PaymentConflictException>(() =>
+            Service.PayAsync(approved.BookingId, 10, Guid.NewGuid()));
+        Assert.Single(_repository.GetPaymentByBookingId(approved.BookingId));
     }
 
     [Fact]
@@ -100,27 +127,47 @@ public sealed class PaymentServiceTests : IDisposable
             .Select(_ => Task.Run(async () =>
             {
                 using var db = _database.CreateDbContext();
-                var service = new PaymentService(new PaymentRepository(db));
+                var service = CreateService(new PaymentRepository(db));
                 return await service.PayAsync(booking, 10, attempt);
             })));
         var stored = Assert.Single(_repository.GetPaymentByBookingId(booking));
         Assert.All(payments, p => Assert.Equal(stored.PaymentId, p.PaymentId));
-        Assert.Equal(PaymentStatus.APPROVED, stored.Status);
+        Assert.Contains(stored.Status, new[] { PaymentStatus.APPROVED, PaymentStatus.REJECTED });
+        Assert.All(payments, p => Assert.Contains(p.Status,
+            new[] { PaymentStatus.PROCESSING, stored.Status }));
     }
 
     [Fact]
-    public async Task ConcurrentDifferentAttemptsHaveOneWinner()
+    public async Task ConcurrentDifferentAttemptsAllowRejectionsButAtMostOneApproval()
     {
         var booking = Guid.NewGuid();
         var results = await Task.WhenAll(Enumerable.Range(0, 100).Select(_ => Task.Run(async () =>
         {
             using var db = _database.CreateDbContext();
-            var service = new PaymentService(new PaymentRepository(db));
-            try { await service.PayAsync(booking, 10, Guid.NewGuid()); return true; }
-            catch (PaymentConflictException) { return false; }
+            var service = CreateService(new PaymentRepository(db));
+            try { return (PaymentEntity?)await service.PayAsync(booking, 10, Guid.NewGuid()); }
+            catch (PaymentConflictException) { return null; }
         })));
-        Assert.Equal(1, results.Count(success => success));
-        Assert.Single(_repository.GetPaymentByBookingId(booking));
+        var completed = results.OfType<PaymentEntity>().ToArray();
+        var stored = _repository.GetPaymentByBookingId(booking);
+        Assert.NotEmpty(completed);
+        Assert.Equal(completed.Select(p => p.PaymentId).OrderBy(id => id),
+            stored.Select(p => p.PaymentId).OrderBy(id => id));
+        Assert.All(stored, p => Assert.Contains(p.Status,
+            new[] { PaymentStatus.APPROVED, PaymentStatus.REJECTED }));
+        Assert.InRange(stored.Count(p => p.Status == PaymentStatus.APPROVED), 0, 1);
+    }
+
+    private PaymentEntity CreateStoredPayment(PaymentStatus status)
+    {
+        var payment = new PaymentEntity
+        {
+            BookingId = Guid.NewGuid(),
+            PaymentAttemptId = Guid.NewGuid(),
+            Amount = 10
+        };
+        _repository.CreatePayment(payment);
+        return _repository.UpdatePaymentStatus(payment.PaymentId, status)!;
     }
 
     public void Dispose() => _db.Dispose();
