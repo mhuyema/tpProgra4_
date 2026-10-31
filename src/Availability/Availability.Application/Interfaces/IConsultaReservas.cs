@@ -10,4 +10,4 @@ namespace Availability.Application.Interfaces
         Task<List<int>> ObtenerAsientosOcupadosAsync(int eventoId);
         Task<EstadoSolicitudDTO> ObtenerEstadoAsync(Guid solicitudId);
     }
-    }
+}

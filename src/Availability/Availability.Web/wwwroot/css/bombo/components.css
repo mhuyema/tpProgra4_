@@ -132,3 +132,30 @@
   transform-origin: 50% 100%; animation: bombo-tick 1s linear infinite;
 }
 @keyframes bombo-tick { to { transform: rotate(360deg); } }
+
+/* Panel lateral */
+.bombo-panel { position: fixed; inset: 0; z-index: 200; }
+.bombo-panel[hidden] { display: none; }
+.bombo-panel__overlay { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.6); animation: bombo-panel-fade .25s ease; }
+.bombo-panel__sheet {
+  position: absolute; top: 0; right: 0; bottom: 0; width: min(420px, 100%);
+  display: flex; flex-direction: column; gap: 1rem; padding: 2rem 1.75rem;
+  background: rgba(14, 14, 14, 0.92);
+  -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px);
+  border-left: 1px solid var(--outline);
+  animation: bombo-panel-in .3s ease;
+}
+.bombo-panel__sheet:focus { outline: 0; }
+.bombo-panel__close {
+  align-self: flex-end; width: 2.25rem; height: 2.25rem; border: 0; border-radius: var(--radius-full);
+  background: var(--surface-low); color: var(--primary); font-size: 22px; line-height: 1; cursor: pointer;
+  box-shadow: inset 0 0 0 1px var(--outline); transition: background .2s;
+}
+.bombo-panel__close:hover { background: var(--surface-high); }
+.bombo-panel__text { color: var(--on-surface-variant); margin: 0; }
+@keyframes bombo-panel-in { from { transform: translateX(100%); } to { transform: none; } }
+@keyframes bombo-panel-fade { from { opacity: 0; } to { opacity: 1; } }
+.bombo-panel__body { display: grid; }
+.bombo-panel__form { display: grid; gap: 1rem; }
+.bombo-panel__dismiss { width: 100%; margin-top: auto; }
+.bombo-panel__form .bombo-btn { width: 100%; }

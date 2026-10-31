@@ -1,11 +1,22 @@
 using Availability.Application.CasosDeUso;
 using Availability.Infrastructure.Data;
 using Broker.Messaging.DependencyInjection;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
+
+// Sesión por cookie (no persistente: se cierra con el navegador) y Session para guardar la reserva pendiente.
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(o => o.LoginPath = "/Cuenta/Login");
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(o =>
+{
+    o.Cookie.HttpOnly = true;
+    o.Cookie.IsEssential = true;
+});
 
 builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -37,7 +48,8 @@ else
 app.UseHttpsRedirection();
 app.UseRouting();
 
-
+app.UseSession();
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapStaticAssets();

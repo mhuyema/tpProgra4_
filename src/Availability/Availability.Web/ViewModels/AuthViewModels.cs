@@ -13,6 +13,9 @@ public class LoginViewModel
     [DataType(DataType.Password)]
     [Display(Name = "Contraseña")]
     public string Password { get; set; } = "";
+
+    /// <summary>A dónde volver después de iniciar sesión (solo URLs locales).</summary>
+    public string? ReturnUrl { get; set; }
 }
 
 public class RegisterViewModel

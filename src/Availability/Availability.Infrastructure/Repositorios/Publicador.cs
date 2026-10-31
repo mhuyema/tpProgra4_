@@ -14,7 +14,17 @@ namespace Availability.Infrastructure.Repositorios
         public Task PublicarAsync(SolicitudReserva solicitud)
         {
             var mensaje = new ReservationRequestedMessage(
-                solicitud.RequestId, solicitud.EventoId, solicitud.AsientoId, solicitud.UsuarioId);
+                solicitud.RequestId, solicitud.EventoId, solicitud.AsientoId, solicitud.UsuarioId, solicitud.Monto);
+
+            return broker.PublishAsync(mensaje, solicitud.RequestId.ToString());
+        }
+    }
+    public class PublicadorFalso(IMessagePublisher broker) : IPublicadorSolicitudes
+    {
+        public Task PublicarAsync(SolicitudReserva solicitud)
+        {
+            var mensaje = new ReservationRequestedMessage(
+                solicitud.RequestId, solicitud.EventoId, solicitud.AsientoId, solicitud.UsuarioId, solicitud.Monto);
 
             return broker.PublishAsync(mensaje, solicitud.RequestId.ToString());
         }

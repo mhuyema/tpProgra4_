@@ -8,6 +8,7 @@
     const count = document.querySelector('[data-seat-count]');
     const cta = document.querySelector('[data-seat-cta] .bombo-btn');
     const inputs = document.querySelector('[data-seat-inputs]');
+    const form = inputs ? inputs.closest('form') : null;
     const selected = new Map(); // id -> { label, price }
 
     const money = (n) => '$ ' + n.toLocaleString('es-AR');
@@ -47,9 +48,7 @@
         if (cta) cta.disabled = selected.size === 0;
     }
 
-    map.addEventListener('click', (e) => {
-        const seat = e.target.closest('.bombo-seat[data-seat]');
-        if (!seat || seat.disabled) return;
+    function toggle(seat) {
         const id = seat.dataset.seat;
         if (selected.has(id)) {
             selected.delete(id);
@@ -61,7 +60,32 @@
             seat.classList.add('bombo-seat--selected');
             seat.setAttribute('aria-pressed', 'true');
         }
+    }
+
+    map.addEventListener('click', (e) => {
+        const seat = e.target.closest('.bombo-seat[data-seat]');
+        if (!seat || seat.disabled) return;
+        toggle(seat);
         render();
+    });
+
+    // Sin sesión, "Confirmar reserva" abre el panel que lleva a iniciar sesión en vez de enviar el formulario.
+    const requiresLogin = form && form.dataset.authenticated === 'false';
+    if (cta && requiresLogin) {
+        cta.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (selected.size === 0 || !window.bomboPanel) return;
+            // El formulario del panel viaja con la selección para que el servidor la conserve al iniciar sesión.
+            const target = document.querySelector('[data-login-seat-inputs]');
+            if (target && inputs) target.replaceChildren(...Array.from(inputs.children).map((n) => n.cloneNode(true)));
+            window.bomboPanel.open(form.dataset.loginPanel);
+        });
+    }
+
+    // Selección guardada antes de iniciar sesión: se vuelve a marcar, salteando butacas que ya no estén libres.
+    ((form && form.dataset.preselect) || '').split(',').filter(Boolean).forEach((id) => {
+        const seat = map.querySelector('.bombo-seat[data-seat="' + id + '"]');
+        if (seat && !seat.disabled) toggle(seat);
     });
 
     render();

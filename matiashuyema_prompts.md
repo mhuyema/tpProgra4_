@@ -97,3 +97,25 @@ Navbar    Inter Medium
 40. (2026-10-29) Claro, sustitui la informacion del metodo del publicador falso, con lo necesario para la publicacion real.
 
 41. (2026-10-29) Si hace los cambios, menos el 3.
+
+42. (2026-10-31) porque me esta dando un error en el conection string de service bus?
+
+43. (2026-10-31) esta en el user secrets pero de el web
+
+44. (2026-10-31) Resolve el problema del simulador, y si configura para que usen la misma clave.
+
+45. (2026-10-31) Cambias el nombre del archivo del prompt a matiashuyema_prompts?
+
+46. (2026-10-31) si cambialo en claude.
+
+47. (2026-10-31) esta funcional availability? comenta temporalmente lo que le pega al endpoint de consultar asientos disponibles o reservados por favor. Asi compila.
+
+48. (2026-10-31) Necesito armar una vista que respete la estetica pero que te pida iniciar sesion para poder confirmar una reserva, es decir apretas el boton de confirmar reserva y aparece un panel lateral que te envia a iniciar sesion, pero antes de eso tiene que guardar la información de la reserva que queria, para una vez iniciado sesion cargue de nuevo la misma pantalla. (respuestas: cookie auth simulada; reserva pendiente en la sesion del servidor)
+
+49. (2026-10-31) el slide lateral esta bien pero deberia aparecer las casillas para ingresar email y contraseña tambien y que cuando pongas iniciar sesion ahi haga la autenticacion tmb, por mas que ahora sea falsa. que quede listo.
+
+50. (2026-10-31) levanta todo el proyecto
+
+51. (2026-10-31) Levantas los proyectos
+
+52. (2026-10-31) killea todos los proyectos y levantalos de nuevo.

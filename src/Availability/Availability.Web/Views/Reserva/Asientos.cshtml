@@ -5,6 +5,14 @@
     ViewData["Title"] = "Elegí tus asientos";
     ViewData["FullWidth"] = true;
     var confirm = new ButtonModel("Confirmar reserva", Type: "submit", Lock: true, LockText: "Reservando…");
+    var loginPanel = new SidePanelModel(
+        "panel-login",
+        "Falta un paso",
+        "Iniciá sesión para confirmar",
+        "Guardamos tus butacas. Cuando entres vas a volver a esta misma pantalla con tu selección lista.",
+        "Components/_LoginPanelBody",
+        new LoginPanelBodyModel(Model.EventoId, Model.LoginError, Model.LoginEmail),
+        OpenOnLoad: Model.LoginError is not null);
 }
 
 <div class="bombo-container">
@@ -21,7 +29,10 @@
         <aside class="bombo-reserva__aside">
             <partial name="Components/_EventSummary" model="Model.Event" />
 
-            <form method="post" asp-action="Confirmar" class="bombo-card bombo-reserva__selection">
+            <form method="post" asp-action="Confirmar" id="form-seleccion" class="bombo-card bombo-reserva__selection"
+                  data-authenticated="@(Model.Autenticado ? "true" : "false")"
+                  data-login-panel="panel-login"
+                  data-preselect="@string.Join(",", Model.Preseleccion ?? Array.Empty<int>())">
                 <input type="hidden" name="EventoId" value="@Model.EventoId" />
                 <div data-seat-inputs></div>
                 @if (TempData["Error"] is string error)
@@ -47,6 +58,12 @@
     </div>
 </div>
 
+@if (!Model.Autenticado)
+{
+    <partial name="Components/_SidePanel" model="loginPanel" />
+}
+
 @section Scripts {
+    <partial name="_ValidationScriptsPartial" />
     <script src="~/js/seat-map.js" asp-append-version="true"></script>
 }

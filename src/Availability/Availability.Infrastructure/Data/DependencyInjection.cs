@@ -1,8 +1,12 @@
 ﻿using Availability.Application.Interfaces;
+using Availability.Infrastructure.Broker;
 using Availability.Infrastructure.Repositorios;
+using Availability.Infrastructure.Servicios;
+using Broker.Messaging;
+using Broker.Messaging.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.EntityFrameworkCore;
 
 namespace Availability.Infrastructure.Data
 {
@@ -18,11 +22,28 @@ namespace Availability.Infrastructure.Data
                 o.UseSqlServer(config.GetConnectionString("DbConexion")));
 
             services.AddScoped<IEventoRepositorio, EventoRepositorio>();
+
+            var conexionBroker = config[BrokerOptions.ConnectionStringEnvVar];
+
+            if (string.IsNullOrWhiteSpace(conexionBroker)) 
+            {
+                services.AddScoped<IPublicadorSolicitudes, Publicador>();
+            }
+            else
+            {
+                services.AddBroker(config);
+                // AddBroker lee Broker:ConnectionString o la variable de entorno real; así también acepta la misma clave de user-secrets.
+                services.PostConfigure<BrokerOptions>(o => o.ConnectionString ??= conexionBroker);
+                services.AddBrokerPublisher();
+                services.AddScoped<IPublicadorSolicitudes, PublicadorServiceBus>();
+            }
+
             services.AddScoped<IAsientoRepositorio, AsientoRepositorio>();
             services.AddScoped<ISolicitudReservaRepositorio, SolicitudReservaRepositorio>();
-
-            services.AddScoped<IPublicadorSolicitudes, Publicador>();
-            services.AddScoped<IConsultaReservas, ConsultaReservasFalsa>();
+            services.AddHttpClient<IConsultaReservas, BookingService>(client =>
+            {
+                client.BaseAddress = new Uri("https://localhost:5001/api/reservas/");
+            });
 
             return services;
         }

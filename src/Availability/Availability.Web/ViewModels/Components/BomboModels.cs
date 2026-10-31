@@ -44,6 +44,20 @@ public record HeroModel(
 
 public record VenueCardModel(string Name, string Location, string ImageUrl, string Href);
 
+/// <summary>Panel lateral: el contenido propio va en BodyPartial (con BodyModel). OpenOnLoad lo abre al cargar la página.</summary>
+public record SidePanelModel(
+    string Id,
+    string Label,
+    string Title,
+    string Text,
+    string BodyPartial,
+    object? BodyModel = null,
+    string CloseText = "Seguir eligiendo",
+    bool OpenOnLoad = false);
+
+/// <summary>Contenido del panel de login de la pantalla de asientos.</summary>
+public record LoginPanelBodyModel(int EventoId, string? Error = null, string? Email = null);
+
 public record FooterLink(string Text, string Href);
 
 public record FooterModel(string Brand, IReadOnlyList<FooterLink> Links);

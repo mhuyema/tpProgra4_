@@ -56,8 +56,7 @@ namespace Availability.Infrastructure.Data
                 entity.Property(s => s.AsientoId).IsRequired();
                 entity.Property(s => s.UsuarioId).IsRequired().HasMaxLength(100);
                 entity.Property(s => s.EventoId).IsRequired();
-          
-
+                entity.Property(s => s.Monto).IsRequired().HasColumnType("decimal(18,2)");
             });
 
         }

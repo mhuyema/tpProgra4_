@@ -129,6 +129,9 @@ namespace Availability.Infrastructure.Migrations
                     b.Property<int>("EventoId")
                         .HasColumnType("int");
 
+                    b.Property<decimal>("Monto")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<string>("UsuarioId")
                         .IsRequired()
                         .HasMaxLength(100)
