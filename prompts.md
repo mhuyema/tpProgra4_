@@ -91,3 +91,9 @@ Navbar    Inter Medium
 37. (2026-10-29) Arma la migracion y hace un update database
 
 38. (2026-10-29) la 1, adaptá la Web a int
+
+39. (2026-10-29) Necesito conectar mi publicador dentro de availability.infrascture con el proyecto de broker, a traves de esta ruta: src/Broker/Broker.Messaging/Contracts/ReservationRequestedMessage.cs respetando la estructura del proyecto.
+
+40. (2026-10-29) Claro, sustitui la informacion del metodo del publicador falso, con lo necesario para la publicacion real.
+
+41. (2026-10-29) Si hace los cambios, menos el 3.

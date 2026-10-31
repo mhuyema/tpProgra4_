@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Availability.Application\Availability.Application.csproj" />
+    <ProjectReference Include="..\..\Broker\Broker.Messaging\Broker.Messaging.csproj" />
   </ItemGroup>
 
   <ItemGroup>

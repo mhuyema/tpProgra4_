@@ -1,5 +1,6 @@
 using Availability.Application.CasosDeUso;
 using Availability.Infrastructure.Data;
+using Broker.Messaging.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -7,6 +8,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 
 builder.Services.AddInfrastructure(builder.Configuration);
+
+builder.Services.AddBroker(builder.Configuration);
+builder.Services.AddBrokerPublisher();
 
 builder.Services.AddScoped<ListarEventos>();
 builder.Services.AddScoped<ObtenerEvento>();

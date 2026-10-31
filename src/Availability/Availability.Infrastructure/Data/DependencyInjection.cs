@@ -21,7 +21,7 @@ namespace Availability.Infrastructure.Data
             services.AddScoped<IAsientoRepositorio, AsientoRepositorio>();
             services.AddScoped<ISolicitudReservaRepositorio, SolicitudReservaRepositorio>();
 
-            services.AddScoped<IPublicadorSolicitudes, PublicadorFalso>();
+            services.AddScoped<IPublicadorSolicitudes, Publicador>();
             services.AddScoped<IConsultaReservas, ConsultaReservasFalsa>();
 
             return services;
