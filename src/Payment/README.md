@@ -60,8 +60,9 @@ con el flujo de reservas deberán implementarse en Booking por separado.
 - Mismo bookingId y paymentAttemptId con igual importe: mismo pago, incluso si está PROCESSING.
 - Mismo intento con distinto importe: conflicto.
 - Otro intento con un pago APPROVED o PROCESSING en la reserva: conflicto.
-- Sin pagos o con todos REJECTED: crea PROCESSING y simula APPROVED si amount > 0;
-  de lo contrario finaliza REJECTED.
+- Sin pagos o con todos REJECTED: crea PROCESSING y finaliza aleatoriamente
+  en APPROVED o REJECTED.
+- Un importe cero o negativo es inválido: devuelve gRPC InvalidArgument sin crear un pago.
 - Guid.Empty en cualquiera de los identificadores: gRPC InvalidArgument.
 - Conflictos: gRPC AlreadyExists, con el motivo en el detalle.
 - Las búsquedas individuales y la actualización de un ID inexistente devuelven null.
@@ -87,16 +88,28 @@ Desde la raíz de la solución:
 dotnet test tests/Payment.Tests/Payment.Tests.csproj -c Release
 ```
 
-Las pruebas de repositorio, servicio y gRPC usan SQL Server real. Por defecto se conectan
-a `(localdb)\MSSQLLocalDB` con autenticación de Windows. Para usar otra instancia,
-configurar `PAYMENT_TEST_SQL_CONNECTION_STRING` con la conexión al servidor de pruebas.
-El usuario de esa conexión debe poder crear y eliminar bases.
+Las pruebas de repositorio, servicio y gRPC usan SQL Server real. En Windows, por defecto
+crean e inician una instancia LocalDB propia `PaymentTests_<guid>`, con autenticación de
+Windows. Se requiere LocalDB instalado y `sqllocaldb` disponible en PATH. No dependen
+del estado de la instancia predeterminada `MSSQLLocalDB`.
+
+Para usar una instancia existente o ejecutar desde otro sistema operativo, configurar
+`PAYMENT_TEST_SQL_CONNECTION_STRING` con la conexión al servidor de pruebas.
+El usuario de esa conexión debe poder crear y eliminar bases. En ese caso no se crea
+ni se detiene ninguna instancia de SQL Server.
 
 Cada corrida crea una base `PaymentTests_<guid>`, aplica las migraciones y la elimina
-al terminar. El nombre de base indicado en la conexión se reemplaza siempre por el
+al terminar. También detiene y elimina la instancia LocalDB si la creó la fixture.
+El nombre de base indicado en la conexión se reemplaza siempre por el
 nombre temporal; las pruebas no usan PaymentDb. Cada caso utiliza identificadores
 nuevos y cada llamada concurrente tiene su propio contexto, repositorio y servicio.
 La aplicación de pruebas gRPC recibe la conexión temporal antes de iniciar.
+
+Los casos que ejecutan el sorteo verifican un estado final APPROVED o REJECTED y
+que los reintentos conserven el resultado. Para comprobar ambos estados y los conflictos
+sin depender del azar, se preparan pagos con estados conocidos en la base de pruebas.
+Los intentos concurrentes distintos pueden avanzar después de un rechazo, pero nunca
+deben producir más de un pago APPROVED para la misma reserva.
 
 Los casos de idempotencia usan importes con hasta dos decimales, de acuerdo con
 `decimal(18,2)`. La política de rechazo o normalización de importes con más decimales
