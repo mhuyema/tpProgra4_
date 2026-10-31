@@ -1,9 +1,26 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
+  <ItemGroup>
+    <None Include="wwwroot\entradas_design_system.md" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Availability.Application\Availability.Application.csproj" />
+    <ProjectReference Include="..\Availability.Infrastructure\Availability.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>51174f7f-ca18-4ad7-8fcb-37715e93abb4</UserSecretsId>
   </PropertyGroup>
 
 </Project>

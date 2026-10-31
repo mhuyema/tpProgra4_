@@ -1,0 +1,44 @@
+@using Availability.Web.Models
+@using Availability.Web.Models.Components
+@model EstadoSolicitudViewModel
+@{
+    ViewData["Title"] = "Estado de tu reserva";
+    ViewData["FullWidth"] = true;
+    var volver = new ButtonModel("Volver a la cartelera", Href: Url.Action("Index", "Home"), Variant: ButtonVariant.Secondary);
+}
+
+<div class="bombo-container">
+    <div class="bombo-section" style="padding-bottom:0">
+        <span class="bombo-label-md" style="color:var(--primary-fixed)">Reserva</span>
+        <h1 class="bombo-headline-lg">Estado de tu reserva</h1>
+    </div>
+
+    <div class="bombo-reserva">
+        <section class="bombo-card bombo-reserva__selection">
+            <div class="bombo-section__head" style="margin-bottom:.75rem">
+                <h3 class="bombo-headline-sm">Tus solicitudes</h3>
+                <span class="bombo-label-md">@Model.Solicitudes.Count</span>
+            </div>
+            <ul class="bombo-reserva__list">
+                @foreach (var s in Model.Solicitudes)
+                {
+                    <li class="bombo-reserva__item">
+                        <span class="bombo-label-md">Solicitud @s.SolicitudId.ToString()[..8]</span>
+                        <span>
+                            <partial name="Components/_Badge" model="new BadgeModel(s.Estado)" />
+                            @if (!string.IsNullOrEmpty(s.Motivo))
+                            {
+                                <span class="bombo-body-sm">@s.Motivo</span>
+                            }
+                        </span>
+                    </li>
+                }
+            </ul>
+            <partial name="Components/_Button" model="volver" />
+        </section>
+
+        <aside class="bombo-reserva__aside">
+            <partial name="Components/_EventSummary" model="Model.Event" />
+        </aside>
+    </div>
+</div>

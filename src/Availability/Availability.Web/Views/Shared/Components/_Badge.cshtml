@@ -1,0 +1,3 @@
+@using Availability.Web.Models.Components
+@model BadgeModel
+<span class="bombo-badge@(Model.IsError ? " bombo-badge--error" : "")">@Model.Text</span>

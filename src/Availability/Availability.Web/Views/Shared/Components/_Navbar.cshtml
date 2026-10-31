@@ -1,0 +1,45 @@
+﻿@using Availability.Web.Models.Components
+@model NavbarModel
+@{
+    var current = ViewContext.RouteData.Values["controller"]?.ToString();
+    var logout = new ButtonModel("Cerrar sesión", Variant: ButtonVariant.Secondary, Type: "submit");
+}
+<nav class="bombo-nav">
+    <div class="bombo-nav__inner">
+        <a class="bombo-nav__brand" asp-controller="Home" asp-action="Index">@Model.Brand</a>
+        @if (Model.ShowSearch)
+        {
+            <form class="bombo-nav__search" role="search">
+                <partial name="Components/_SearchInput" model="new SearchInputModel()" />
+            </form>
+        }
+        @if (Model.Regions is { Count: > 0 })
+        {
+            <select class="bombo-select" aria-label="Región">
+                @foreach (var region in Model.Regions)
+                {
+                    <option>@region</option>
+                }
+            </select>
+        }
+        <ul class="bombo-nav__links">
+            @foreach (var link in Model.Links)
+            {
+                var active = string.Equals(current, link.Controller, StringComparison.OrdinalIgnoreCase);
+                <li><a class="bombo-nav__link@(active ? " bombo-nav__link--active" : "")" asp-controller="@link.Controller" asp-action="@link.Action">@link.Text</a></li>
+            }
+        </ul>
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            <form class="bombo-nav__login" method="post" asp-controller="Cuenta" asp-action="Logout">
+                <partial name="Components/_Button" model="logout" />
+            </form>
+        }
+        else if (Model.Login is not null)
+        {
+            <div class="bombo-nav__login">
+                <partial name="Components/_Button" model="Model.Login" />
+            </div>
+        }
+    </div>
+</nav>

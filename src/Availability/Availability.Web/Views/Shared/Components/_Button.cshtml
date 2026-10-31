@@ -1,0 +1,15 @@
+@using Availability.Web.Models.Components
+@model ButtonModel
+@{
+    var css = $"bombo-btn bombo-btn--{(Model.Variant == ButtonVariant.Primary ? "primary" : "secondary")}";
+    var lockAttr = Model.Lock ? "true" : null;
+    var lockText = Model.Lock ? Model.LockText : null;
+}
+@if (Model.Href is not null)
+{
+    <a href="@Model.Href" class="@css" data-lock="@lockAttr" data-lock-text="@lockText"><span class="bombo-btn__label">@Model.Text</span></a>
+}
+else
+{
+    <button type="@Model.Type" class="@css" data-lock="@lockAttr" data-lock-text="@lockText"><span class="bombo-btn__label">@Model.Text</span></button>
+}

@@ -1,0 +1,28 @@
+@using Availability.Web.Models.Components
+@model SeatMapModel
+<div class="bombo-seatmap" data-seat-map data-max-seats="@Model.MaxSeats">
+    <div class="bombo-seatmap__stage bombo-label-md">@Model.StageLabel</div>
+    <div class="bombo-seatmap__grid">
+        @foreach (var row in Model.Rows)
+        {
+            <div class="bombo-seatmap__row">
+                <span class="bombo-seatmap__label bombo-label-sm">@row.Label</span>
+                @foreach (var seat in row.Seats)
+                {
+                    var occupied = seat.Status == SeatStatus.Occupied;
+                    <button type="button"
+                            class="bombo-seat@(occupied ? " bombo-seat--occupied" : "")"
+                            data-seat="@seat.Id" data-label="@seat.Label" data-price="@seat.Price.ToString("0")"
+                            aria-label="Butaca @seat.Label"
+                            aria-pressed="false"
+                            disabled="@occupied">@seat.Number</button>
+                }
+            </div>
+        }
+    </div>
+    <div class="bombo-seatmap__legend">
+        <span class="bombo-seatmap__legend-item"><i class="bombo-seat bombo-seat--legend"></i><span class="bombo-label-sm">Disponible</span></span>
+        <span class="bombo-seatmap__legend-item"><i class="bombo-seat bombo-seat--legend bombo-seat--selected"></i><span class="bombo-label-sm">Elegida</span></span>
+        <span class="bombo-seatmap__legend-item"><i class="bombo-seat bombo-seat--legend bombo-seat--occupied"></i><span class="bombo-label-sm">Ocupada</span></span>
+    </div>
+</div>

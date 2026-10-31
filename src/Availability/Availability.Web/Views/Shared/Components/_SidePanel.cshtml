@@ -1,0 +1,15 @@
+@using Availability.Web.Models.Components
+@model SidePanelModel
+<div class="bombo-panel" id="@Model.Id" data-panel data-open-on-load="@(Model.OpenOnLoad ? "true" : null)" hidden>
+    <div class="bombo-panel__overlay" data-panel-close></div>
+    <aside class="bombo-panel__sheet" role="dialog" aria-modal="true" aria-labelledby="@(Model.Id)-title" tabindex="-1">
+        <button type="button" class="bombo-panel__close" data-panel-close aria-label="Cerrar">&times;</button>
+        <span class="bombo-label-md" style="color:var(--primary-fixed)">@Model.Label</span>
+        <h2 class="bombo-headline-md" id="@(Model.Id)-title">@Model.Title</h2>
+        <p class="bombo-body-md bombo-panel__text">@Model.Text</p>
+        <div class="bombo-panel__body">
+            <partial name="@Model.BodyPartial" model="Model.BodyModel" />
+        </div>
+        <button type="button" class="bombo-btn bombo-btn--secondary bombo-panel__dismiss" data-panel-close><span class="bombo-btn__label">@Model.CloseText</span></button>
+    </aside>
+</div>

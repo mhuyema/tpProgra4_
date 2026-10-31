@@ -1,0 +1,12 @@
+@using Availability.Web.Models
+@model LoginViewModel
+<div class="bombo-field">
+    <label asp-for="Email" class="bombo-label-md"></label>
+    <input asp-for="Email" class="bombo-input" autocomplete="email" />
+    <span asp-validation-for="Email" class="bombo-field__error"></span>
+</div>
+<div class="bombo-field">
+    <label asp-for="Password" class="bombo-label-md"></label>
+    <input asp-for="Password" class="bombo-input" autocomplete="current-password" />
+    <span asp-validation-for="Password" class="bombo-field__error"></span>
+</div>

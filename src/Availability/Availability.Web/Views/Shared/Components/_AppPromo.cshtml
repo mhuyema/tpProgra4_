@@ -1,0 +1,22 @@
+@using Availability.Web.Models.Components
+@{
+    var download = new ButtonModel("Descargar app", "#");
+    var how = new ButtonModel("Cómo funciona", "#", ButtonVariant.Secondary);
+}
+<section class="bombo-app-promo">
+    <div>
+        <span class="bombo-label-md bombo-app-promo__eyebrow">La app BOMBO</span>
+        <h2 class="bombo-headline-lg">Tu entrada, imposible de copiar</h2>
+        <p class="bombo-body-lg bombo-app-promo__desc">
+            El QR dinámico se renueva cada pocos segundos: una captura de pantalla no sirve en la puerta.
+        </p>
+        <div class="bombo-app-promo__actions">
+            <partial name="Components/_Button" model="download" />
+            <partial name="Components/_Button" model="how" />
+        </div>
+    </div>
+    <div class="bombo-card bombo-app-promo__qr" aria-hidden="true">
+        <partial name="Components/_LivePip" model="@("QR dinámico")" />
+        <div class="bombo-app-promo__qr-box"></div>
+    </div>
+</section>

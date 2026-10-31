@@ -1,0 +1,30 @@
+@using Availability.Web.Models
+@using Availability.Web.Models.Components
+@model LoginViewModel
+@{
+    ViewData["Title"] = "Ingresar";
+    ViewData["FullWidth"] = true;
+    var submit = new ButtonModel("Ingresar", Type: "submit", Lock: true, LockText: "Ingresando…");
+}
+
+<div class="bombo-container bombo-auth">
+    <div class="bombo-card bombo-auth__card">
+        <span class="bombo-label-md" style="color:var(--primary-fixed)">Tu cuenta</span>
+        <h1 class="bombo-headline-lg">Ingresar</h1>
+
+        <form asp-action="Login" method="post" class="bombo-auth__form">
+            <input asp-for="ReturnUrl" type="hidden" />
+            <partial name="Components/_LoginFields" model="Model" />
+            <partial name="Components/_Button" model="submit" />
+        </form>
+
+        <p class="bombo-body-md bombo-auth__alt">
+            ¿Primera vez en BOMBO?
+            <a asp-action="Register">Registrate</a>
+        </p>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
