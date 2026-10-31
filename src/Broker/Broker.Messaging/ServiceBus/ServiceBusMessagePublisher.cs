@@ -28,9 +28,11 @@ public sealed class ServiceBusMessagePublisher : IMessagePublisher, IAsyncDispos
     {
         var busMessage = new ServiceBusMessage(JsonSerializer.SerializeToUtf8Bytes(message))
         {
-            // MessageId = correlationId: si el topic tiene habilitada la detección de duplicados (hoy no lo está),
-            // reintentar la publicación de una misma solicitud no genera una reserva doble.
-            MessageId = correlationId,
+            // MessageId = correlationId + tipo: si el topic tiene habilitada la detección de duplicados (hoy no lo está),
+            // reintentar la publicación de un mismo mensaje no lo duplica. El tipo evita que los distintos mensajes
+            // de una misma cadena (solicitud, reserva creada, reserva confirmada) compartan MessageId y el broker
+            // descarte los posteriores como si fueran duplicados.
+            MessageId = $"{correlationId}:{typeof(T).Name}",
             CorrelationId = correlationId,
             Subject = typeof(T).Name,
             ContentType = "application/json"

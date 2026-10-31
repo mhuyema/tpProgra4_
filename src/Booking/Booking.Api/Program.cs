@@ -6,6 +6,7 @@ using Booking.Data.Repositories;
 using Payment.Contracts;
 using ProtoBuf.Grpc.ClientFactory;
 using Booking.Business.Payments;
+using Booking.Business.Notifications;
 using Booking.API.Integrations;
 using Broker.Messaging.Contracts;
 using Broker.Messaging.DependencyInjection;
@@ -39,6 +40,11 @@ builder.Services.AddScoped<IPagoGateway, PagoGrpcGateway>();
 // AddBroker registra el ServiceBusClient (singleton). La cadena de conexion NO va en el repo:
 // se lee de la variable de entorno SERVICEBUS_CONNECTION_STRING.
 builder.Services.AddBroker(builder.Configuration);
+
+// Booking también PUBLICA en el topic (avisos de reserva creada y confirmada para Notificaciones, 3.h).
+// Business solo conoce el contrato INotificadorReservas; NotificadorBroker lo implementa con el publisher compartido.
+builder.Services.AddBrokerPublisher();
+builder.Services.AddScoped<INotificadorReservas, NotificadorBroker>();
 
 // Paso 4 del flujo: Booking consume ReservationRequestedMessage desde la suscripcion "booking" del topic.
 // Competing Consumers: todas las replicas de Booking usan la MISMA suscripcion, entonces el broker

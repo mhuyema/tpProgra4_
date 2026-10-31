@@ -1,4 +1,5 @@
 using Booking.Business.Messages;
+using Booking.Business.Notifications;
 using Booking.Business.Payments;
 using Booking.Data.Entities;
 using Booking.Data.Repositories;
@@ -18,17 +19,20 @@ public class ReservaService : IReservaService
 
     private readonly IReservaRepository _repo;
     private readonly IPagoGateway _pagoGateway;
+    private readonly INotificadorReservas _notificador;
     private readonly ILogger<ReservaService> _logger;
 
-    // Recibe el repositorio, el contrato interno de pagos y el servicio de logging
+    // Recibe el repositorio, los contratos internos de pagos y notificaciones y el servicio de logging
     // mediante inyección de dependencias.
     public ReservaService(
         IReservaRepository repo,
         IPagoGateway pagoGateway,
+        INotificadorReservas notificador,
         ILogger<ReservaService> logger)
     {
         _repo = repo;
         _pagoGateway = pagoGateway;
+        _notificador = notificador;
         _logger = logger;
     }
 
@@ -67,6 +71,12 @@ public class ReservaService : IReservaService
         {
             _logger.LogInformation("Reserva {ReservaId} Retenida hasta {VenceEn:O}",
                 reserva.Id, reserva.VenceEn);
+
+            // Aviso 1 del punto 3.h: la reserva quedó creada. Solo se llega acá cuando ESTE mensaje
+            // la creó; una re-entrega devuelve la existente más arriba y no vuelve a notificar.
+            await NotificarSinFallarAsync("ReservaCreada", reserva,
+                () => _notificador.NotificarReservaCreadaAsync(reserva));
+
             return reserva;
         }
 
@@ -295,6 +305,15 @@ public class ReservaService : IReservaService
                 solicitudId, reserva.Id, estadoNuevo);
         }
 
+        // Aviso 2 del punto 3.h: el pago fue exitoso y la reserva quedó Confirmada.
+        // Solo si la transición se aplicó en este proceso (el UPDATE atómico lo garantiza),
+        // así no se notifica dos veces si el worker de recuperación retoma el mismo intento.
+        if (transicionAplicada && estadoNuevo == EstadoReserva.Confirmada)
+        {
+            await NotificarSinFallarAsync("ReservaConfirmada", reserva,
+                () => _notificador.NotificarReservaConfirmadaAsync(reserva));
+        }
+
         // Se consulta el estado real porque otro proceso pudo modificarlo.
         reserva = await ObtenerYVerificarVencimientoAsync(solicitudId);
 
@@ -316,6 +335,24 @@ public class ReservaService : IReservaService
         }
 
         return reserva;
+    }
+
+    // Los avisos son "best effort": la fuente de verdad es el estado de la reserva (Availability lo
+    // consulta por GET). Si el broker falla al publicar, se audita el error pero NO se deshace ni se
+    // reintenta la reserva ni el cobro: un aviso perdido no debe afectar un pago ya registrado.
+    // Mejora posible: patrón Outbox (marcar en la reserva qué avisos faltan y publicarlos desde un worker).
+    private async Task NotificarSinFallarAsync(string tipo, Reserva reserva, Func<Task> publicar)
+    {
+        try
+        {
+            await publicar();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "[AUDITORIA] No se pudo publicar el aviso {Tipo}. SolicitudId={SolicitudId} ReservaId={ReservaId}",
+                tipo, reserva.SolicitudId, reserva.Id);
+        }
     }
 
     // Comprueba el vencimiento antes de continuar con el pago y

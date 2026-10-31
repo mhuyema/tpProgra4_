@@ -52,6 +52,18 @@ public sealed class ServiceBusSubscriberService<TMessage, THandler> : Background
     {
         var correlationId = args.Message.CorrelationId ?? args.Message.MessageId;
 
+        // Varios tipos de mensaje comparten el topic (solicitud, reserva creada, reserva confirmada) y cada
+        // suscripción recibe todos. Si el Subject (que el publisher setea con el nombre del tipo) no es el que
+        // este suscriptor consume, se confirma y se ignora: así Booking no procesa sus propios avisos como
+        // solicitudes. Un mensaje sin Subject (por ejemplo enviado a mano desde el portal) se procesa igual.
+        if (args.Message.Subject is not null && args.Message.Subject != typeof(TMessage).Name)
+        {
+            await args.CompleteMessageAsync(args.Message, args.CancellationToken);
+            _logger.LogDebug("Mensaje {Subject} ignorado por el suscriptor de {Esperado} correlationId={CorrelationId}",
+                args.Message.Subject, typeof(TMessage).Name, correlationId);
+            return;
+        }
+
         _logger.LogInformation("[AUDITORIA] RECIBIDO correlationId={CorrelationId} intento={Intento}",
             correlationId, args.Message.DeliveryCount);
 
