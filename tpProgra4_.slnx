@@ -8,6 +8,9 @@
     <Project Path="src/Availability/Availability.Infrastructure/Availability.Infrastructure.csproj" Id="2430f75b-0a77-4c5a-8e73-55b722efd1ed" />
     <Project Path="src/Availability/Availability.Web/Availability.Web.csproj" />
   </Folder>
+  <Folder Name="/Authorization/">
+    <Project Path="src/Authorization/Authorization.Server/Authorization.Server.csproj" />
+  </Folder>
   <Folder Name="/Booking/">
     <Project Path="src/Booking/Booking.Api/Booking.Api.csproj" />
     <Project Path="src/Booking/Booking.Business/Booking.Business.csproj" />
@@ -31,3 +34,5 @@
   </Folder>
   <Project Path="src/Notifications/Notifications.Api/Notifications.Api.csproj" />
 </Solution>
+
+
