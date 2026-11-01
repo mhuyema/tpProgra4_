@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/AuditLog/">
+    <Project Path="src/AuditLog/AuditLog.Api/AuditLog.Api.csproj" />
+  </Folder>
   <Folder Name="/Availability/">
     <Project Path="src/Availability/Availability.Application/Availability.Application.csproj" Id="1f33f663-1219-4262-bb3e-7879ec662644" />
     <Project Path="src/Availability/Availability.Domain/Availability.Domain.csproj" Id="b710392f-ce49-418b-a145-83e7d663c30d" />
@@ -20,6 +23,7 @@
     <Project Path="src/Payment/Payment.Data/Payment.Data.csproj" />
   </Folder>
   <Folder Name="/Tests/">
+    <Project Path="tests/AuditLog.Tests/AuditLog.Tests.csproj" />
     <Project Path="tests/Payment.Tests/Payment.Tests.csproj" />
   </Folder>
   <Folder Name="/Tools/">
