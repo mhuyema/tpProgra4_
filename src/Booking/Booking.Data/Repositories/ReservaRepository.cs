@@ -1,3 +1,4 @@
+
 using Booking.Data.Entities;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +13,29 @@ public class ReservaRepository : IReservaRepository
 
     public Task<Reserva?> ObtenerPorSolicitudAsync(Guid solicitudId) =>
         _db.Reservas.AsNoTracking().FirstOrDefaultAsync(r => r.SolicitudId == solicitudId);
+
+    // Consulta los identificadores de los asientos ocupados de un evento.
+    // Incluye las reservas Confirmadas y las Retenidas cuyo plazo sigue vigente.
+    // Excluye las Rechazadas, Vencidas y las retenciones expiradas,
+    // aunque el worker todavía no haya actualizado su estado.
+    // El filtrado y la selección de AsientoId se realizan en SQL Server,
+    // sin recuperar entidades Reserva completas.
+    public async Task<IReadOnlyList<int>> ObtenerAsientosOcupadosPorEventoAsync(
+        int eventoId,
+        DateTime ahoraUtc)
+    {
+        return await _db.Reservas
+            .AsNoTracking()
+            .Where(r =>
+                r.EventoId == eventoId &&
+                (r.Estado == EstadoReserva.Confirmada ||
+                 (r.Estado == EstadoReserva.Retenida &&
+                  r.VenceEn != null &&
+                  r.VenceEn > ahoraUtc)))
+            .OrderBy(r => r.AsientoId)
+            .Select(r => r.AsientoId)
+            .ToListAsync();
+    }
 
     public async Task AgregarAsync(Reserva reserva)
     {

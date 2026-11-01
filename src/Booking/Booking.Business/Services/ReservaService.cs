@@ -1,3 +1,4 @@
+
 using Booking.Business.Messages;
 using Booking.Business.Notifications;
 using Booking.Business.Payments;
@@ -170,6 +171,17 @@ public class ReservaService : IReservaService
     public Task<Reserva?> ObtenerPorSolicitudAsync(Guid solicitudId)
     {
         return _repo.ObtenerPorSolicitudAsync(solicitudId);
+    }
+
+    // Consulta los identificadores de los asientos ocupados de un evento.
+    // Delega al repositorio el filtrado de reservas Confirmadas y
+    // Retenidas vigentes, utilizando la fecha y hora actual en UTC.
+    public Task<IReadOnlyList<int>> ObtenerAsientosOcupadosPorEventoAsync(
+        int eventoId)
+    {
+        return _repo.ObtenerAsientosOcupadosPorEventoAsync(
+            eventoId,
+            DateTime.UtcNow);
     }
 
     // Inicia o retoma el pago de una reserva retenida, reutilizando

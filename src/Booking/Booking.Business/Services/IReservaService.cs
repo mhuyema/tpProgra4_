@@ -1,3 +1,4 @@
+
 using Booking.Business.Messages;
 using Booking.Data.Entities;
 
@@ -20,6 +21,11 @@ public interface IReservaService
     // Consulta una reserva mediante el identificador generado por Availability.
     // Paso 7: seguimiento del resultado de una solicitud
     Task<Reserva?> ObtenerPorSolicitudAsync(Guid solicitudId);
+
+    // Consulta los identificadores de los asientos ocupados de un evento.
+    // Incluye Confirmadas y Retenidas que todavía no hayan vencido.
+    Task<IReadOnlyList<int>> ObtenerAsientosOcupadosPorEventoAsync(
+        int eventoId);
 
     // Procesa o retoma el pago de una reserva mediante su identificador de solicitud.
     Task<Reserva> ProcesarPagoAsync(Guid solicitudId);

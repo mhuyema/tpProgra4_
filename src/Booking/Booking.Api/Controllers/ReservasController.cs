@@ -1,3 +1,4 @@
+
 using Microsoft.AspNetCore.Mvc;
 using Booking.Business.Services;
 using Booking.API.DTOs;
@@ -30,6 +31,25 @@ public class ReservasController : ControllerBase
             RejectionReason: reserva.Motivo?.ToString(),
             ExpiresAt: reserva.VenceEn
         );
+
+        return Ok(respuesta);
+    }
+
+    // Permite a Availability consultar los asientos ocupados de un evento.
+    // El filtrado se realiza en Booking, incluyendo reservas Confirmadas
+    // y Retenidas cuyo plazo todavía está vigente.
+    // Devuelve únicamente los identificadores de los asientos ocupados.
+    [HttpGet("eventos/{eventoId:int}/asientos-ocupados")]
+    public async Task<ActionResult<AsientosOcupadosResponseDTO>> ObtenerAsientosOcupados(int eventoId)
+    {
+        var asientosOcupados = await _reservaService
+            .ObtenerAsientosOcupadosPorEventoAsync(eventoId);
+
+        var respuesta = new AsientosOcupadosResponseDTO
+        {
+            EventoId = eventoId,
+            AsientosOcupados = asientosOcupados.ToList()
+        };
 
         return Ok(respuesta);
     }

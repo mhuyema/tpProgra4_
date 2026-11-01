@@ -4,12 +4,15 @@ using Payment.Data.Exceptions;
 using Payment.Data.Repositories;
 using PaymentEntity = Payment.Data.Entities.Payment;
 using Payment.Business.Auditing;
+using Microsoft.Extensions.Configuration;
 namespace Payment.Business.Services;
 
 public sealed class PaymentService(
     IPaymentRepository repository,
-    IPaymentAuditPublisher audit) : IPaymentService
+    IPaymentAuditPublisher audit,
+    IConfiguration configuration) : IPaymentService
 {
+    private readonly int approvalRandomPercentage = configuration.GetValue<int>("Payment:ApprovalRandomPercentage",20);
     public async Task<PaymentEntity> PayAsync(Guid bookingId, decimal amount, Guid paymentAttemptId)
     {
         var correlationId = Guid.NewGuid().ToString();
@@ -37,6 +40,8 @@ public sealed class PaymentService(
             throw new ArgumentException("BookingId no puede ser vacío.", nameof(bookingId));
         if (paymentAttemptId == Guid.Empty)
             throw new ArgumentException("PaymentAttemptId no puede ser vacío.", nameof(paymentAttemptId));
+        if (amount <= 0)
+            throw new ArgumentException("Amount must be greater than 0", nameof(amount));
 
         var existing = repository.GetPaymentByAttempt(bookingId, paymentAttemptId);
         if (existing is not null)
@@ -78,7 +83,7 @@ public sealed class PaymentService(
         // Simula una operación asíncrona; los reintentos pueden consultar PROCESSING.
         // Desconectar el cliente no cancela un cobro ya creado.
         await Task.Yield();
-        var finalStatus = amount > 0 ? PaymentStatus.APPROVED : PaymentStatus.REJECTED;
+        var finalStatus = Random.Shared.Next(100) < 50 ? PaymentStatus.REJECTED : PaymentStatus.APPROVED;
         return repository.UpdatePaymentStatus(payment.PaymentId, finalStatus)
             ?? throw new InvalidOperationException("El pago creado no se encuentra.");
     }
