@@ -1,9 +1,11 @@
 using Broker.Messaging.Abstractions;
 using Broker.Messaging.Contracts;
+using Microsoft.Extensions.Logging;
 
 namespace Payment.Business.Auditing;
 
-public sealed class PaymentAuditPublisher(IMessagePublisher publisher) : IPaymentAuditPublisher
+public sealed class PaymentAuditPublisher(
+    IMessagePublisher publisher, ILogger<PaymentAuditPublisher> logger) : IPaymentAuditPublisher
 {
     public Task InitProcessAsync(string correlationId, string processName,
         Dictionary<string, object?>? details = null, CancellationToken cancellationToken = default)
@@ -48,7 +50,7 @@ public sealed class PaymentAuditPublisher(IMessagePublisher publisher) : IPaymen
         return eventDetails;
     }
 
-    private Task PublishAsync(string correlationId, string action, string message,
+    private async Task PublishAsync(string correlationId, string action, string message,
         Dictionary<string, object?> details, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(correlationId);
@@ -62,6 +64,16 @@ public sealed class PaymentAuditPublisher(IMessagePublisher publisher) : IPaymen
             CorrelationId: correlationId,
             Details: details);
 
-        return publisher.PublishAsync(auditLog, correlationId, cancellationToken);
+        try
+        {
+            await publisher.PublishAsync(auditLog, correlationId, cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            // La auditoría no debe impedir el pago ni reemplazar su error original.
+            logger.LogError(exception,
+                "No se pudo publicar la auditoría {Action}. CorrelationId={CorrelationId}",
+                action, correlationId);
+        }
     }
 }
