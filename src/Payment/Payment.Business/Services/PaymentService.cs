@@ -3,10 +3,13 @@ using Payment.Data.Entities;
 using Payment.Data.Exceptions;
 using Payment.Data.Repositories;
 using PaymentEntity = Payment.Data.Entities.Payment;
-
+using Broker.Messaging.Abstractions;
+using Broker.Messaging.Contracts;
 namespace Payment.Business.Services;
 
-public sealed class PaymentService(IPaymentRepository repository) : IPaymentService
+public sealed class PaymentService(
+    IPaymentRepository repository,
+    IMessagePublisher publisher) : IPaymentService
 {
     public async Task<PaymentEntity> PayAsync(Guid bookingId, decimal amount, Guid paymentAttemptId)
     {

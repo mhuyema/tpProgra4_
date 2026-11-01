@@ -43,6 +43,7 @@ services:
         ASSEMBLY: Payment.Api
     environment:
       ConnectionStrings__DbConexion: "Server=sqlserver;Database=PaymentDb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True"
+      SERVICEBUS_CONNECTION_STRING: ${SERVICEBUS_CONNECTION_STRING:?definir SERVICEBUS_CONNECTION_STRING en .env}
     ports:
       - "5087:8080" # gRPC (HTTP/2 sin TLS)
     depends_on:
