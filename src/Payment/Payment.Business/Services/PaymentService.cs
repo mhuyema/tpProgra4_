@@ -3,16 +3,38 @@ using Payment.Data.Entities;
 using Payment.Data.Exceptions;
 using Payment.Data.Repositories;
 using PaymentEntity = Payment.Data.Entities.Payment;
+using Payment.Business.Auditing;
 using Microsoft.Extensions.Configuration;
 namespace Payment.Business.Services;
 
 public sealed class PaymentService(
     IPaymentRepository repository,
-    IConfiguration configuration
-    ) : IPaymentService
+    IPaymentAuditPublisher audit,
+    IConfiguration configuration) : IPaymentService
 {
     private readonly int approvalRandomPercentage = configuration.GetValue<int>("Payment:ApprovalRandomPercentage",20);
     public async Task<PaymentEntity> PayAsync(Guid bookingId, decimal amount, Guid paymentAttemptId)
+    {
+        var correlationId = Guid.NewGuid().ToString();
+        const string processName = "ProcesarPago";
+        await audit.InitProcessAsync(correlationId, processName);
+
+        try
+        {
+            var payment = await PayCoreAsync(bookingId, amount, paymentAttemptId);
+            await audit.EndProcessAsync(correlationId, processName,
+                new { payment.PaymentId, payment.BookingId, payment.PaymentAttemptId, payment.Amount,
+                    Status = payment.Status.ToString() });
+            return payment;
+        }
+        catch (Exception exception)
+        {
+            await audit.EmitErrorAsync(correlationId, processName, exception);
+            throw;
+        }
+    }
+
+    private async Task<PaymentEntity> PayCoreAsync(Guid bookingId, decimal amount, Guid paymentAttemptId)
     {
         if (bookingId == Guid.Empty)
             throw new ArgumentException("BookingId no puede ser vacío.", nameof(bookingId));

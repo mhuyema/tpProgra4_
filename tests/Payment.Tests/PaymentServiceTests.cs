@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging.Abstractions;
+using Payment.Business.Auditing;
 using Payment.Business.Exceptions;
 using Payment.Business.Services;
 using Payment.Data;
@@ -15,9 +17,12 @@ public sealed class PaymentServiceTests : IDisposable
     private readonly PaymentDatabaseFixture _database;
     private readonly AppDbContext _db;
     private readonly PaymentRepository _repository;
-    private static PaymentService CreateService(PaymentRepository repository) =>
-        new(repository, new ConfigurationBuilder().Build());
+    private readonly TestMessagePublisher _publisher = new();
     private PaymentService Service => CreateService(_repository);
+
+    private PaymentService CreateService(IPaymentRepository repository) => new(
+        repository, new PaymentAuditPublisher(_publisher, NullLogger<PaymentAuditPublisher>.Instance),
+        new ConfigurationBuilder().Build());
 
     public PaymentServiceTests(PaymentDatabaseFixture database)
     {
@@ -38,6 +43,14 @@ public sealed class PaymentServiceTests : IDisposable
         Assert.NotEqual(Guid.Empty, payment.PaymentId);
         Assert.Equal(TimeSpan.Zero, payment.CreatedAt.Offset);
         Assert.Equal(payment.Status, _repository.GetPayment(payment.PaymentId)!.Status);
+        var events = _publisher.Messages.ToArray();
+        Assert.Equal(new[] { "InitProcess", "EndProcess" }, events.Select(e => e.Action));
+        Assert.True(Guid.TryParse(events[0].CorrelationId, out _));
+        Assert.Equal(events[0].CorrelationId, events[1].CorrelationId);
+        var result = System.Text.Json.JsonSerializer.SerializeToElement(events[1].Details!["Result"]);
+        Assert.Equal(payment.BookingId, result.GetProperty("BookingId").GetGuid());
+        Assert.Equal(payment.PaymentId, result.GetProperty("PaymentId").GetGuid());
+        Assert.Equal(payment.Status.ToString(), result.GetProperty("Status").GetString());
     }
 
     [Theory]
@@ -62,6 +75,10 @@ public sealed class PaymentServiceTests : IDisposable
         await Assert.ThrowsAsync<ArgumentException>(() => Service.PayAsync(
             emptyBooking ? Guid.Empty : Guid.NewGuid(), 10,
             emptyBooking ? Guid.NewGuid() : Guid.Empty));
+        var events = _publisher.Messages.ToArray();
+        Assert.Equal(new[] { "InitProcess", "EmitError" }, events.Select(e => e.Action));
+        Assert.Equal(events[0].CorrelationId, events[1].CorrelationId);
+        Assert.Equal(typeof(ArgumentException).FullName, events[1].Details!["ErrorType"]);
     }
 
     [Theory]
@@ -78,7 +95,12 @@ public sealed class PaymentServiceTests : IDisposable
         Assert.Equal(first.PaymentId, repeated.PaymentId);
         Assert.Equal(first.Status, repeated.Status);
         Assert.Single(_repository.GetPaymentByBookingId(booking));
+        var events = _publisher.Messages.ToArray();
+        Assert.Equal(new[] { "InitProcess", "EndProcess" },
+            events.Select(e => e.Action));
+        Assert.Equal(events[0].CorrelationId, events[1].CorrelationId);
         await Assert.ThrowsAsync<PaymentConflictException>(() => service.PayAsync(booking, amount + 1, attempt));
+        Assert.Equal("EmitError", _publisher.Messages.Last().Action);
     }
 
     [Fact]
@@ -168,6 +190,34 @@ public sealed class PaymentServiceTests : IDisposable
         };
         _repository.CreatePayment(payment);
         return _repository.UpdatePaymentStatus(payment.PaymentId, status)!;
+    }
+
+    [Theory]
+    [InlineData(10)]
+    [InlineData(1)]
+    public async Task BrokerFailureDoesNotPreventPayment(int amount)
+    {
+        var service = new PaymentService(_repository, new PaymentAuditPublisher(
+            new TestMessagePublisher { FailPublishing = true }, NullLogger<PaymentAuditPublisher>.Instance),
+            new ConfigurationBuilder().Build());
+
+        var payment = await service.PayAsync(Guid.NewGuid(), amount, Guid.NewGuid());
+
+        Assert.Contains(payment.Status, new[] { PaymentStatus.APPROVED, PaymentStatus.REJECTED });
+        Assert.Equal(payment.Status, _repository.GetPayment(payment.PaymentId)!.Status);
+    }
+
+    [Fact]
+    public async Task BrokerFailureDoesNotReplaceOriginalPaymentError()
+    {
+        var service = new PaymentService(_repository, new PaymentAuditPublisher(
+            new TestMessagePublisher { FailPublishing = true }, NullLogger<PaymentAuditPublisher>.Instance),
+            new ConfigurationBuilder().Build());
+
+        var error = await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.PayAsync(Guid.Empty, 10, Guid.NewGuid()));
+
+        Assert.Equal("bookingId", error.ParamName);
     }
 
     public void Dispose() => _db.Dispose();

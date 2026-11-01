@@ -3,6 +3,20 @@
 name: tp-reservas
 
 services:
+  auditlog:
+    build:
+      context: .
+      args:
+        PROJECT: src/AuditLog/AuditLog.Api
+        ASSEMBLY: AuditLog.Api
+    environment:
+      SERVICEBUS_CONNECTION_STRING: ${SERVICEBUS_CONNECTION_STRING:?definir SERVICEBUS_CONNECTION_STRING en .env}
+      ConnectionStrings__LiteDb: "Filename=/data/auditlog.db;Connection=direct"
+    ports:
+      - "5305:8080"
+    volumes:
+      - auditlogdata:/data
+
   # Una sola instancia de SQL Server con una base por servicio (BookingDb, PaymentDb):
   # cada microservicio es dueño de su base y no accede a la del otro, pero no hacen falta 3 contenedores.
   sqlserver:
@@ -29,6 +43,7 @@ services:
         ASSEMBLY: Payment.Api
     environment:
       ConnectionStrings__DbConexion: "Server=sqlserver;Database=PaymentDb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True"
+      SERVICEBUS_CONNECTION_STRING: ${SERVICEBUS_CONNECTION_STRING:?definir SERVICEBUS_CONNECTION_STRING en .env}
     ports:
       - "5087:8080" # gRPC (HTTP/2 sin TLS)
     depends_on:
@@ -68,4 +83,5 @@ services:
       - booking
 
 volumes:
+  auditlogdata:
   sqldata:

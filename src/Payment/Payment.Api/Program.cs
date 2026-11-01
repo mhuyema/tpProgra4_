@@ -3,8 +3,11 @@ using Microsoft.EntityFrameworkCore;
 using Payment.Api.Services;
 using Payment.Data;
 using Payment.Business.Services;
+using Payment.Business.Auditing;
 using Payment.Data.Repositories;
 using ProtoBuf.Grpc.Server;
+using Broker.Messaging.DependencyInjection;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +17,12 @@ builder.WebHost.ConfigureKestrel(options =>
 builder.Services.AddCodeFirstGrpc();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IPaymentAuditPublisher, PaymentAuditPublisher>();
+
+builder.Services.AddBroker(builder.Configuration);
+builder.Services.AddBrokerPublisher();
+
+
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(

@@ -5,3 +5,7 @@ obj/
 
 # Secretos locales
 .env
+
+# Datos locales de AuditLog
+src/AuditLog/AuditLog.Api/Data/*.db
+src/AuditLog/AuditLog.Api/Data/*-log.db
