@@ -210,10 +210,22 @@ Booking llama a Payment por gRPC en `http://localhost:5087`.
 
 **Requisitos:** Docker Desktop. No hace falta LocalDB: el compose levanta su propio SQL Server.
 
-1. Copiar `.env.example` a `.env` en la raíz y completar `SERVICEBUS_CONNECTION_STRING` y `SA_PASSWORD`. El `.env` no se sube al repo.
+1. Copiar `.env.example` a `.env` en la raíz y completar `SERVICEBUS_CONNECTION_STRING`, `SA_PASSWORD` y `AUDITLOG_PASSWORD`. El `.env` no se sube al repo.
 2. Desde la raíz, correr `docker compose up --build`.
 3. Entrar a http://localhost:5269
 
 Puertos (solo HTTP): Availability `5269`, Booking `5295` y Payment `5087`.
+
+### Consola de AuditLogs
+
+Ejecutar `docker compose up --build -d auditlog` y abrir http://localhost:5305. Ingresar con la contraseña definida en `AUDITLOG_PASSWORD` del `.env`. Compose la inyecta al iniciar el contenedor como `AuditLog__Password`; la contraseña no se incluye en la imagen ni en el JavaScript. Para cambiarla, editar el `.env` y volver a ejecutar el comando.
+
+El front se sirve desde AuditLog.Api, sin instalar dependencias adicionales. Permite combinar filtros por servicio, acción, Correlation ID, Log ID y rango de fechas. Las coincidencias son exactas, las fechas se ingresan y muestran en hora local y se envían al GET en UTC. Cada página devuelve hasta 50 registros; si la última tiene exactamente 50, la siguiente puede estar vacía. Los detalles JSON se pueden desplegar en cada fila.
+
+Al pulsar un encabezado se alterna el orden ascendente/descendente en el servidor antes de paginar. El GET `/logs` conserva sus filtros y agrega `sortBy=dateUtc|service|action|message|correlationId|logId` y `sortDirection=asc|desc`; por defecto devuelve los más recientes primero.
+
+El login de ejemplo usa una contraseña compartida y una cookie HttpOnly de cuatro horas. `/logs` requiere sesión y devuelve 401 si no está autenticado. Para consumirlo desde otro cliente, hacer primero `POST /session` con JSON `{"password":"..."}` y conservar la cookie. `GET /session` consulta la sesión y `DELETE /session` la cierra. Sin contraseña configurada, el login devuelve 503.
+
+Para ejecutar AuditLog fuera de Docker, definir `AuditLog__Password` en el entorno, además de la conexión al broker, y correr `dotnet run --project src/AuditLog/AuditLog.Api`.
 
 <!-- TODO: en el compose Availability todavía no tiene base (sigue apuntando a LocalDB) -->

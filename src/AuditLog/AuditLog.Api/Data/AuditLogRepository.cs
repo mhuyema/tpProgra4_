@@ -53,7 +53,16 @@ public sealed class AuditLogRepository
         if (filter.StartDate.HasValue) query = query.Where(Query.GTE("DateUtc", filter.StartDate.Value.UtcDateTime));
         if (filter.EndDate.HasValue) query = query.Where(Query.LTE("DateUtc", filter.EndDate.Value.UtcDateTime));
 
-        return query.OrderBy("SortKey", Query.Descending)
+        var sortField = filter.SortBy switch
+        {
+            "service" => "Service",
+            "action" => "Action",
+            "message" => "Message",
+            "correlationId" => "CorrelationId",
+            "logId" => "_id",
+            _ => "SortKey"
+        };
+        return query.OrderBy(sortField, filter.SortDirection == "asc" ? Query.Ascending : Query.Descending)
             .Offset(checked((filter.Page - 1) * LogQuery.PageSize))
             .Limit(LogQuery.PageSize).ToList()
             .Select(document => new AuditLogEntry(

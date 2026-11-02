@@ -13,6 +13,12 @@ public class LogQuery : IValidatableObject
     public DateTimeOffset? StartDate { get; set; }
     public DateTimeOffset? EndDate { get; set; }
 
+    [RegularExpression("^(dateUtc|service|action|message|correlationId|logId)$")]
+    public string SortBy { get; set; } = "dateUtc";
+
+    [RegularExpression("^(asc|desc)$")]
+    public string SortDirection { get; set; } = "desc";
+
     [Range(1, int.MaxValue / PageSize)]
     public int Page { get; set; } = 1;
 
