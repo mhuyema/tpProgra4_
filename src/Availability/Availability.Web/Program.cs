@@ -1,6 +1,9 @@
 using Availability.Application.CasosDeUso;
+using Availability.Application.Interfaces;
 using Availability.Application.Servicios;
 using Availability.Infrastructure.Data;
+using Availability.Infrastructure.Servicios;
+using Availability.Web;
 using Broker.Messaging.DependencyInjection;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -44,6 +47,13 @@ builder.Services.AddSession(o =>
 });
 
 builder.Services.AddInfrastructure(builder.Configuration);
+
+// Mismo cliente tipado que registra Infrastructure (comparten nombre): se le suma el Bearer del usuario.
+// El handler vive en Web porque lee el token del HttpContext; Infrastructure no conoce ASP.NET.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddTransient<TokenUsuarioHandler>();
+builder.Services.AddHttpClient<IConsultaReservas, BookingService>()
+    .AddHttpMessageHandler<TokenUsuarioHandler>();
 
 builder.Services.AddBroker(builder.Configuration);
 builder.Services.AddBrokerPublisher();
