@@ -1,0 +1,50 @@
+@model Authorization.Server.Models.LoginViewModel
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ingresar - BOMBO</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800;900&family=Anton&family=Inter:wght@400;500&display=swap" />
+    <link rel="stylesheet" href="~/css/bombo/tokens.css" />
+    <link rel="stylesheet" href="~/css/bombo/components.css" />
+    <link rel="stylesheet" href="~/css/bombo/sections.css" />
+    <link rel="stylesheet" href="~/css/auth.css" />
+</head>
+<body class="bombo">
+    <main class="bombo-container bombo-auth bombo-auth-page" role="main">
+        <div class="bombo-card bombo-auth__card">
+            <a class="bombo-auth-brand" href="/">BOMBO</a>
+            <span class="bombo-label-md" style="color:var(--primary-fixed)">Tu cuenta</span>
+            <h1 class="bombo-headline-lg">Ingresar</h1>
+
+            @if (!string.IsNullOrEmpty(Model.Error))
+            {
+                <div><span class="bombo-badge bombo-badge--error">@Model.Error</span></div>
+            }
+
+            <form method="post" action="/auth/login" class="bombo-auth__form">
+                <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+                <div class="bombo-field">
+                    <label for="email" class="bombo-label-md">Email</label>
+                    <input id="email" name="email" type="email" class="bombo-input" autocomplete="email" required value="@Model.Email" />
+                </div>
+                <div class="bombo-field">
+                    <label for="password" class="bombo-label-md">Contraseña</label>
+                    <input id="password" name="password" type="password" class="bombo-input" autocomplete="current-password" required />
+                </div>
+                <button type="submit" class="bombo-btn bombo-btn--primary" data-lock="true" data-lock-text="Ingresando…"><span class="bombo-btn__label">Ingresar</span></button>
+            </form>
+
+            <p class="bombo-body-md bombo-auth__sep">o</p>
+            <a class="bombo-btn bombo-btn--secondary" href="/auth/google?returnUrl=@Uri.EscapeDataString(Model.ReturnUrl ?? "/")"><span class="bombo-btn__label">Ingresar con Google</span></a>
+        </div>
+    </main>
+    <script src="~/js/lock-click.js"></script>
+</body>
+</html>

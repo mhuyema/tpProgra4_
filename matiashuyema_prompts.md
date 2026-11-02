@@ -141,3 +141,11 @@ Navbar    Inter Medium
 62. (2026-10-31) (respuesta a preguntas) Contrato: "No, pero lo que podes hacer ahi, es un metodo auxiliar, no tengo claro si en una clase aparte que lo que haga sea en base al id del asiento consultar la fila y demas, para que con eso deduzca con la informacion propia que ya tengo, y que devuelva una lista de asientos de ultima al a vista me explico_". Booking: "espera que lo integra otra persona".
 
 63. (2026-10-31) Sí, hacé que degrade a todo libre
+
+64. (2026-10-31) Necesito agregar un boton que me diga el estado de reserva en la vista de cuando confirmo una reserva, para actualizar el estado.
+
+65. (2026-10-31) y tambien agrega el amount si no esta y el motivo por el que no se aprobo en caso de que suceda.
+
+66. (2026-11-02) Necesito integrar el login y  el register de Availability.web con el Authorization server, a trraves del Authorization Controller. Tambien quiero que hagas un seed en el authorization donde tenga un primer usuario de prueba.
+
+67. (2026-11-02) (respuesta a pregunta de integración) No queremos que registre, queremos que inicie sesion y cablee lo que ya esta.

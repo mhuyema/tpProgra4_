@@ -3,6 +3,8 @@ using Availability.Application.Servicios;
 using Availability.Infrastructure.Data;
 using Broker.Messaging.DependencyInjection;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,8 +12,30 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 
 // Sesión por cookie (no persistente: se cierra con el navegador) y Session para guardar la reserva pendiente.
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(o => o.LoginPath = "/Cuenta/Login");
+// El login se delega al Authorization Server (OIDC authorization code + PKCE); la sesión local sigue siendo una cookie.
+builder.Services.AddAuthentication(o =>
+    {
+        o.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        o.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+    })
+    .AddCookie()
+    .AddOpenIdConnect(o =>
+    {
+        var auth = builder.Configuration.GetSection("Auth");
+        o.Authority = auth["Authority"];
+        o.ClientId = auth["ClientId"];
+        o.ResponseType = OpenIdConnectResponseType.Code;
+        o.UsePkce = true;
+        o.SaveTokens = true;
+        o.MapInboundClaims = false;
+        o.GetClaimsFromUserInfoEndpoint = false;
+        o.CallbackPath = "/signin-oidc";
+        o.Scope.Clear();
+        o.Scope.Add("openid");
+        o.Scope.Add("email");
+        o.Scope.Add("profile");
+        o.TokenValidationParameters.NameClaimType = "name";
+    });
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(o =>
 {

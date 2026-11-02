@@ -21,22 +21,22 @@ public sealed class AuthorizationController(
 {
     [HttpGet("/auth/login")]
     [AllowAnonymous]
-    public IActionResult Login(string? returnUrl = null)
-    {
-        var encodedReturnUrl = Uri.EscapeDataString(returnUrl ?? "/");
-        return Content($"<form method=post action=/auth/login><input type=hidden name=returnUrl value={encodedReturnUrl}><input name=email type=email required><input name=password type=password required><button>Ingresar</button></form><a href=/auth/google?returnUrl={encodedReturnUrl}>Ingresar con Google</a>", "text/html");
-    }
+    public IActionResult Login(string? returnUrl = null) =>
+        View(new LoginViewModel { ReturnUrl = returnUrl });
 
     [HttpPost("/auth/login")]
     [AllowAnonymous]
-    public async Task<IActionResult> Login(string email, string password, string? returnUrl = null)
+    public async Task<IActionResult> Login([FromForm] string email, [FromForm] string password, [FromForm] string? returnUrl = null)
     {
         var user = await userManager.FindByEmailAsync(email);
         if (user is null || !await userManager.CheckPasswordAsync(user, password))
-            return Unauthorized("Credenciales inválidas.");
+        {
+            Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return View(new LoginViewModel { Email = email, ReturnUrl = returnUrl, Error = "Credenciales inválidas." });
+        }
 
         await signInManager.SignInAsync(user, isPersistent: false);
-        return Redirect(string.IsNullOrWhiteSpace(returnUrl) ? "/" : returnUrl);
+        return Redirect(!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl) ? returnUrl : "/");
     }
 
     [HttpGet("/auth/google")]
@@ -108,6 +108,11 @@ public sealed class AuthorizationController(
     public async Task<IActionResult> Logout()
     {
         await signInManager.SignOutAsync();
+
+        // Cierre de sesión OIDC: OpenIddict valida post_logout_redirect_uri y redirige de vuelta al cliente.
+        if (HttpContext.GetOpenIddictServerRequest() is not null)
+            return SignOut(new AuthenticationProperties { RedirectUri = "/" }, OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+
         return Ok(new { message = "Sesión cerrada." });
     }
 

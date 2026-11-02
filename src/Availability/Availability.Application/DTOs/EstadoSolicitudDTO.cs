@@ -7,5 +7,6 @@ namespace Availability.Application.DTOs
     public record EstadoSolicitudDTO(
         Guid SolicitudId,
         string Estado,
-        string? Motivo);
+        string? Motivo,
+        decimal Monto = 0);
 }

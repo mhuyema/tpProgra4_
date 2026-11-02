@@ -21,7 +21,6 @@ namespace Availability.Application.CasosDeUso
             var response = await consultaReservas.ObtenerAsientosOcupadosAsync(eventoId);
 
             var idsOcupados = response.AsientosOcupados
-                .Select(a => a.AsientoId)
                 .ToHashSet();
 
             return catalogo

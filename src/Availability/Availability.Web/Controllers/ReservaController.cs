@@ -1,4 +1,6 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Availability.Application.CasosDeUso;
@@ -39,25 +41,15 @@ public class ReservaController(
             TempData["LoginError"] as string, TempData["LoginEmail"] as string));
     }
 
-    /// <summary>Login desde el panel de la pantalla de asientos: conserva la selección y vuelve a la misma pantalla.</summary>
+    /// <summary>Login desde el panel de la pantalla de asientos: conserva la selección y vuelve a la misma pantalla tras autenticar en el Authorization Server.</summary>
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> IniciarSesion(IniciarSesionReservaViewModel model)
+    public IActionResult IniciarSesion(IniciarSesionReservaViewModel model)
     {
         if (model.AsientoIds.Count is >= 1 and <= 6)
             GuardarPendiente(new ReservaPendiente(model.EventoId, model.AsientoIds));
 
-        if (!ModelState.IsValid)
-        {
-            TempData["LoginError"] = ModelState.Values
-                .SelectMany(v => v.Errors).Select(e => e.ErrorMessage).FirstOrDefault(m => !string.IsNullOrEmpty(m))
-                ?? "No pudimos iniciar sesión.";
-            TempData["LoginEmail"] = model.Email;
-            return RedirectToAction(nameof(Asientos), new { id = model.EventoId });
-        }
-
-        // Pendiente: validar credenciales con Application/Infrastructure cuando existan.
-        await HttpContext.IniciarSesionAsync(model.Email);
-        return RedirectToAction(nameof(Asientos), new { id = model.EventoId });
+        var volver = Url.Action(nameof(Asientos), new { id = model.EventoId })!;
+        return Challenge(new AuthenticationProperties { RedirectUri = volver }, OpenIdConnectDefaults.AuthenticationScheme);
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -108,7 +100,7 @@ public class ReservaController(
             foreach (var id in ids)
             {
                 var estado = await consultarEstado.EjecutarAsync(id, User.Id());
-                items.Add(new SolicitudEstadoItem(estado.SolicitudId, estado.Estado, estado.Motivo));
+                items.Add(new SolicitudEstadoItem(estado.SolicitudId, estado.Estado, estado.Motivo, estado.Monto));
             }
         }
         catch (Exception)

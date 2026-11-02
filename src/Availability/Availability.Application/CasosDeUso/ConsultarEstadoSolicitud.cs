@@ -18,7 +18,9 @@ namespace Availability.Application.CasosDeUso
             if (solicitud is null || solicitud.UsuarioId != usuarioId)
                 throw new Exception("La solicitud no existe.");
 
-            return await consultaReservas.ObtenerEstadoAsync(solicitudId);
+            // El monto lo conoce Availability (se fijó al crear la solicitud); el estado, Booking.
+            var estado = await consultaReservas.ObtenerEstadoAsync(solicitudId);
+            return estado with { Monto = solicitud.Monto };
         }
     }
     }

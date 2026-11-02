@@ -1,3 +1,5 @@
+using Authorization.Server.Models;
+using Microsoft.AspNetCore.Identity;
 using OpenIddict.Abstractions;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 using Authorization.Server;
@@ -8,6 +10,8 @@ public static class SeedData
 {
     public static async Task InitializeAsync(IServiceProvider services, AuthorizationServerOptions options)
     {
+        await SeedUsuarioDePruebaAsync(services);
+
         var manager = services.GetRequiredService<IOpenIddictApplicationManager>();
         const string clientId = "availability-web";
 
@@ -18,10 +22,12 @@ public static class SeedData
             ClientType = ClientTypes.Public,
             ConsentType = ConsentTypes.Implicit,
             RedirectUris = { new Uri(options.ClientRedirectUri) },
+            PostLogoutRedirectUris = { new Uri(new Uri(options.ClientRedirectUri), "/signout-callback-oidc") },
             Permissions =
             {
                 Permissions.Endpoints.Authorization,
                 Permissions.Endpoints.Token,
+                Permissions.Endpoints.EndSession,
                 Permissions.GrantTypes.AuthorizationCode,
                 Permissions.GrantTypes.RefreshToken,
                 Permissions.ResponseTypes.Code,
@@ -38,5 +44,27 @@ public static class SeedData
             await manager.CreateAsync(descriptor);
         else
             await manager.UpdateAsync(application, descriptor);
+    }
+
+    private static async Task SeedUsuarioDePruebaAsync(IServiceProvider services)
+    {
+        const string email = "test@bombo.com";
+        const string password = "Test1234!";
+
+        var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+        if (await userManager.FindByEmailAsync(email) is not null) return;
+
+        var user = new ApplicationUser
+        {
+            UserName = email,
+            Email = email,
+            EmailConfirmed = true,
+            DisplayName = "Usuario de Prueba"
+        };
+
+        var result = await userManager.CreateAsync(user, password);
+        if (!result.Succeeded)
+            throw new InvalidOperationException(
+                "No se pudo crear el usuario de prueba: " + string.Join("; ", result.Errors.Select(e => e.Description)));
     }
 }
