@@ -1,5 +1,5 @@
 # Levanta todo el sistema: docker compose up --build
-# Requiere un .env en la raíz (ver .env.example) con SERVICEBUS_CONNECTION_STRING y SA_PASSWORD.
+# Requiere un .env en la raíz (ver .env.example) con SERVICEBUS_CONNECTION_STRING, SA_PASSWORD y AUDITLOG_PASSWORD.
 name: tp-reservas
 
 services:
@@ -12,6 +12,7 @@ services:
     environment:
       SERVICEBUS_CONNECTION_STRING: ${SERVICEBUS_CONNECTION_STRING:?definir SERVICEBUS_CONNECTION_STRING en .env}
       ConnectionStrings__LiteDb: "Filename=/data/auditlog.db;Connection=direct"
+      AuditLog__Password: ${AUDITLOG_PASSWORD:?definir AUDITLOG_PASSWORD en .env}
     ports:
       - "5305:8080"
     volumes:

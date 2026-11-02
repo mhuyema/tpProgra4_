@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AuditLogs · Registro de actividad</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header><a class="brand" href="/">▤ AuditLogs</a><span>Registro de actividad</span><button id="logout" hidden>Cerrar sesión</button></header>
+  <main>
+    <section id="login" class="login panel" hidden>
+      <p class="eyebrow">CONSOLA DE AUDITORÍA</p>
+      <h1>Iniciar sesión</h1>
+      <p class="muted">Ingresá la contraseña de acceso para consultar los logs.</p>
+      <form id="login-form">
+        <label>Contraseña<input id="password" type="password" autocomplete="current-password" required></label>
+        <button class="primary" type="submit">Ingresar</button>
+      </form>
+      <p id="login-error" class="error" role="alert"></p>
+      <small class="muted">Acceso de ejemplo con contraseña compartida.</small>
+    </section>
+    <section id="dashboard" hidden>
+      <div class="heading"><div><p class="eyebrow">OBSERVABILIDAD</p><h1>Logs de auditoría</h1><p class="muted">Filtrá la actividad y seguí una operación entre servicios.</p></div><button id="refresh">Actualizar</button></div>
+      <form id="filters" class="panel filters">
+        <label>Servicio<input name="service" placeholder="Ej.: Booking"></label>
+        <label>Acción<input name="action" placeholder="Ej.: Created"></label>
+        <label>Desde<input name="startDate" type="datetime-local" step="1"></label>
+        <label>Hasta<input name="endDate" type="datetime-local" step="1"></label>
+        <label>Correlation ID<input name="correlationId" placeholder="ID de la operación"></label>
+        <label>Log ID<input name="logId" placeholder="UUID del registro" pattern="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"></label>
+        <div class="filter-actions"><button class="primary" type="submit">Buscar logs</button><button type="reset">Limpiar</button></div>
+        <small class="muted">Los filtros se combinan por coincidencia exacta. Fechas en tu hora local.</small>
+      </form>
+      <p id="error" class="error" role="alert"></p>
+      <div class="panel results" id="results" aria-busy="false">
+        <div class="results-top"><strong>Registros</strong><span id="status" class="muted" role="status">Cargando…</span></div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr>
+              <th aria-sort="descending"><button data-sort="dateUtc">Fecha <span>↓</span></button></th>
+              <th><button data-sort="service">Servicio <span>↕</span></button></th>
+              <th><button data-sort="action">Acción <span>↕</span></button></th>
+              <th><button data-sort="message">Mensaje <span>↕</span></button></th>
+              <th><button data-sort="correlationId">Correlation ID <span>↕</span></button></th>
+              <th><button data-sort="logId">Log ID <span>↕</span></button></th>
+              <th>Detalles</th>
+            </tr></thead>
+            <tbody id="logs"></tbody>
+          </table>
+        </div>
+        <p id="empty" class="empty" hidden>No hay logs que coincidan con estos filtros.</p>
+        <footer><span id="page">Página 1 · hasta 50 registros por página</span><div><button id="previous">Anterior</button><button id="next">Siguiente</button></div></footer>
+      </div>
+    </section>
+    <p id="startup" class="muted" role="status">Verificando sesión…</p>
+  </main>
+</body>
+</html>
