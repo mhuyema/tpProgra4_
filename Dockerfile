@@ -12,6 +12,8 @@ RUN --mount=type=cache,target=/root/.nuget/packages \
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
+# El volumen de LiteDB hereda estos permisos al crearse por primera vez.
+RUN mkdir /data && chown app:app /data
 # Puerto interno único; el compose decide qué puerto del host se publica.
 ENV ASPNETCORE_URLS=http://+:8080
 # Usuario no root (la imagen aspnet trae el usuario "app").

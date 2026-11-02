@@ -1,9 +1,15 @@
 <Solution>
+  <Folder Name="/AuditLog/">
+    <Project Path="src/AuditLog/AuditLog.Api/AuditLog.Api.csproj" />
+  </Folder>
   <Folder Name="/Availability/">
     <Project Path="src/Availability/Availability.Application/Availability.Application.csproj" Id="1f33f663-1219-4262-bb3e-7879ec662644" />
     <Project Path="src/Availability/Availability.Domain/Availability.Domain.csproj" Id="b710392f-ce49-418b-a145-83e7d663c30d" />
     <Project Path="src/Availability/Availability.Infrastructure/Availability.Infrastructure.csproj" Id="2430f75b-0a77-4c5a-8e73-55b722efd1ed" />
     <Project Path="src/Availability/Availability.Web/Availability.Web.csproj" />
+  </Folder>
+  <Folder Name="/Authorization/">
+    <Project Path="src/Authorization/Authorization.Server/Authorization.Server.csproj" />
   </Folder>
   <Folder Name="/Booking/">
     <Project Path="src/Booking/Booking.Api/Booking.Api.csproj" />
@@ -20,6 +26,7 @@
     <Project Path="src/Payment/Payment.Data/Payment.Data.csproj" />
   </Folder>
   <Folder Name="/Tests/">
+    <Project Path="tests/AuditLog.Tests/AuditLog.Tests.csproj" />
     <Project Path="tests/Payment.Tests/Payment.Tests.csproj" />
   </Folder>
   <Folder Name="/Tools/">
@@ -27,3 +34,5 @@
   </Folder>
   <Project Path="src/Notifications/Notifications.Api/Notifications.Api.csproj" />
 </Solution>
+
+
