@@ -131,12 +131,3 @@ Navbar    Inter Medium
 57. (2026-10-31) Agrega un boton cerrar sesion asi puedo simular el cierre
 
 58. (2026-10-31) bueno ahora inicio sesion pero me volvio a tirar un 404 cuando puse confirmar reserva.
-
-59. (2026-11-02) Hacer un front mínimo en el proyecto de AuditLogs.
-Debe ser un frotn que consuma el GET disponible y muestre los logs que coincidan con el filtro.
-Además debe poder permitir buscar por servicio y ordenar por colunmnas de fecha servicio, etc.
-Debe tener una pantalla de inicio de sesión super simple y de ejemplo que reciba una contraseña que toma del .env el docker cuando lo construye
-
-60. (2026-11-02) ok, stagea los archivos, dame un mensaje commit y decime como probarlo desde el principio
-
-61. (2026-11-02) pero dame como para probar real, yo agregué algo en payments
