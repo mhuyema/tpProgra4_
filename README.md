@@ -11,12 +11,11 @@ Trabajo práctico de Programación IV. Sistema de reserva de asientos para event
 | Matias Huyema | Availability |
 | Alex Palaversich | Availability |
 | Maximiliano Diaz | Booking |
-| Gianni Mozzi | Booking |
+| Gianni Mozzi | Booking y servicio de notificaciones |
 | Martin Alberto Negro Ruffino | Payment |
 | Nicolás Salvador Ruiz Diaz | Authorization Server |
 | Manuel Wald Katz | Message Broker |
 | Alejandra Alcorta | Infraestructura e integración |
-| Gianni Mozzi | Servicio de notificaciones |
 
 ---
 
@@ -25,48 +24,55 @@ Trabajo práctico de Programación IV. Sistema de reserva de asientos para event
 Es el diagrama del enunciado con los dos agregados pedidos: el **servicio de notificaciones** (punto 3h) y la marca de **dónde el sistema se vuelve eventualmente consistente** (punto 3g, en amarillo). También suma el **servicio de auditoría**, que centraliza los logs de los microservicios.
 
 ```mermaid
-flowchart LR
-    U([Usuario / visitante])
-    IP[Public IP Addresses]
-    AV[Availability Site]
-    AVDB[(SQL Availability)]
-    MB{{Message Broker<br/>Azure Service Bus}}
-    BK[Booking REST API<br/>N réplicas]
-    BKDB[(SQL Booking)]
-    PY[Payment gRPC API]
-    PYDB[(SQL Payment)]
-    AS[Authorization Server]
-    IDP[3rd party Identity providers]
-    NT[Servicio de notificaciones]
-    AL[Servicio de auditoría]
-    ALDB[(NoSQL auditoría)]
+flowchart TB
+    U([Usuario / visitante]) --> IP[Public IP Addresses]
 
-    U --> IP --> AV
+    subgraph ENT[Entrada]
+        AV[Availability Site]
+        AVDB[(SQL Availability)]
+    end
+
+    MB{{Message Broker<br/>Azure Service Bus}}
+
+    subgraph INT[Servicios internos]
+        BK[Booking REST API<br/>N réplicas]
+        BKDB[(SQL Booking)]
+        PY[Payment gRPC API]
+        PYDB[(SQL Payment)]
+        NT[Servicio de notificaciones]
+        AL[Servicio de auditoría]
+        ALDB[(NoSQL auditoría)]
+    end
+
+    subgraph SEG[Seguridad]
+        AS[Authorization Server]
+        IDP[3rd party Identity providers]
+    end
+
+    IP --> AV
     AV --> AVDB
     AV -- "PUBLISH solicitud" --> MB
-    MB -. "SUBSCRIBE" .-> BK
     AV -- "GET resultado / asientos ocupados" --> BK
+    MB -. "SUBSCRIBE" .-> BK
     BK --> BKDB
     BK -- "CALL cobro (gRPC)" --> PY
     PY --> PYDB
     BK -- "PUBLISH reserva creada / confirmada" --> MB
-    MB -. "SUBSCRIBE" .-> NT
-    NT -- "aviso" --> U
     PY -- "PUBLISH auditoría" --> MB
+    MB -. "SUBSCRIBE" .-> NT
     MB -. "SUBSCRIBE" .-> AL
     AL --> ALDB
+    NT -- "aviso" --> U
 
-    AV -- AUTHENTICATE --> AS
-    BK -- AUTHENTICATE --> AS
-    PY -- AUTHENTICATE --> AS
-    NT -- AUTHENTICATE --> AS
+    AV -- "AUTHENTICATE" --> AS
+    INT -- "AUTHENTICATE" --> AS
     AS --> IDP
 
     classDef ec fill:#fff3cd,stroke:#d39e00,color:#000
     class MB ec
 ```
 
-**Consistencia eventual (3g):** el sistema se vuelve eventualmente consistente en el **Message Broker**. Cuando Availability publica la solicitud, responde "solicitud recibida" sin esperar el resultado. Durante ese lapso, Availability ya registró la solicitud pero Booking todavía no creó la reserva, y el estado real del asiento se conoce recién cuando una réplica de Booking procesa el mensaje. Lo mismo pasa con la notificación al usuario, que llega después de que Booking confirma la reserva, y con los registros de auditoría, que llegan al servicio de auditoría después de que ocurre cada suceso. Los asientos ocupados que muestra Availability también pueden estar un poco atrasados: los pide a Booking por GET, y Booking puede haber procesado una reserva nueva justo después.
+**Consistencia eventual (3g):** el sistema se vuelve eventualmente consistente en el **Message Broker**. Cuando Availability publica la solicitud, responde "solicitud recibida" sin esperar el resultado. Durante ese lapso, Availability ya registró la solicitud pero Booking todavía no creó la reserva, y el estado real del asiento se conoce recién cuando una réplica de Booking procesa el mensaje. Lo mismo pasa con la notificación al usuario, que llega después de que Booking confirma la reserva, y con los registros de auditoría, que llegan al servicio de auditoría después de que ocurre cada suceso. Los asientos ocupados que muestra Availability también pueden estar un poco atrasados: los pide a Booking por GET, y Booking puede haber procesado una reserva nueva justo después. En términos del teorema CAP, el sistema es AP: prioriza la disponibilidad y la tolerancia al particionado, y la consistencia es eventual.
 
 ---
 
@@ -182,7 +188,7 @@ Es un solo proyecto (Notifications.Api) porque no tiene reglas de negocio: tradu
 
 - Una suscripción por tipo de aviso: el suscriptor de la librería del broker descarta los mensajes que no son de su tipo, así que si compartieran suscripción cada uno se perdería los del otro.
 - Si el broker entrega dos veces el mismo aviso, el usuario recibe uno solo: se registra por solicitud y tipo de aviso. El registro es en memoria y se pierde al reiniciar el servicio.
-- El envío es simulado con un log de auditoría. Para usar un canal real (email, Telegram) alcanza con otra implementación de `INotificationSender`, sin tocar los handlers.
+- El envío es simulado con un log de auditoría. Para usar un canal real (por ejemplo, email) alcanza con otra implementación de `INotificationSender`, sin tocar los handlers.
 
 ---
 
@@ -190,13 +196,27 @@ Es un solo proyecto (Notifications.Api) porque no tiene reglas de negocio: tradu
 
 ### Happy path
 
-<!-- TODO: pasos y capturas -->
-Ver asientos, iniciar sesión, reservar, la reserva pasa a Retenida, después a Confirmada y llega la notificación.
+1. Levantar los servicios como se explica en [Cómo ejecutarlo](#cómo-ejecutarlo).
+2. Entrar a https://localhost:7056 sin iniciar sesión: se ven los eventos y sus asientos disponibles.
+3. Elegir un evento y un asiento libre. Para reservar, el sitio pide iniciar sesión.
+4. Confirmar la reserva. Availability responde enseguida que la solicitud fue recibida, sin esperar el resultado.
+5. En la página de estado, la reserva pasa a **Retenida** y, cuando Payment aprueba el cobro, a **Confirmada**.
+6. En la consola de Notifications.Api aparecen los dos avisos: reserva creada y reserva confirmada. También se pueden ver en `http://localhost:5310/api/notificaciones/{userId}`.
+
+Payment aprueba o rechaza el cobro al azar, así en la demo se ven los dos resultados sin cambiar ninguna configuración: **Confirmada** o **Rechazada** con motivo "pago fallido". Probando varias veces aparecen los dos.
+
+<!-- TODO: capturas -->
 
 ### Fallo: falta un componente
 
-<!-- TODO: pasos y capturas -->
-Con Payment apagado, la reserva termina Rechazada con motivo "pago no disponible".
+1. Levantar todos los servicios menos Payment.Api.
+2. Reservar un asiento como en el happy path. Availability recibe la solicitud igual y la reserva queda **Retenida**.
+3. Booking no puede cobrar y reintenta cada 15 segundos.
+4. La retención dura 5 minutos. Cuando faltan 30 segundos para que venza, Booking rechaza la reserva con motivo **"pago no disponible"** y el asiento vuelve a estar libre.
+
+Mientras Payment está caído, el resto del sistema sigue funcionando: se pueden ver asientos y mandar otras solicitudes.
+
+<!-- TODO: capturas -->
 
 ### Logs de auditoría (3f)
 
