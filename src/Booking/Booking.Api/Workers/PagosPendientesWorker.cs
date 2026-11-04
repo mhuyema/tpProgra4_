@@ -1,4 +1,5 @@
-﻿using Booking.Business.Services;
+﻿using Booking.Business.Auditing;
+using Booking.Business.Services;
 using Booking.Data.Repositories;
 
 namespace Booking.Api.Workers;
@@ -41,6 +42,10 @@ public sealed class PagosPendientesWorker : BackgroundService
                 _logger.LogError(
                     ex,
                     "[AUDITORIA] Error al recuperar pagos pendientes");
+
+                using var errorScope = _scopeFactory.CreateScope();
+                await errorScope.ServiceProvider.GetRequiredService<IBookingAuditPublisher>()
+                    .EmitErrorAsync(Guid.NewGuid().ToString(), "RecuperarPagosPendientes", ex);
             }
 
             try
@@ -112,6 +117,10 @@ public sealed class PagosPendientesWorker : BackgroundService
                     ex,
                     "[AUDITORIA] No se pudo recuperar el pago de la solicitud {SolicitudId}",
                     solicitudId);
+
+                using var errorScope = _scopeFactory.CreateScope();
+                await errorScope.ServiceProvider.GetRequiredService<IBookingAuditPublisher>()
+                    .EmitErrorAsync(solicitudId.ToString(), "RecuperarPagoPendiente", ex);
             }
         }
     }

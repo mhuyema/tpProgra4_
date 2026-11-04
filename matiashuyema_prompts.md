@@ -179,3 +179,11 @@ Navbar    Inter Medium
 81. (2026-11-03) (aprobacion del plan de auditoria en broker para Availability y Booking)
 
 82. (2026-11-03) tengo unos conflictos en merges, los arreglas?
+
+83. (2026-11-03) che me aaprece que me falta configurar la password en el servidor en auditlog
+
+84. (2026-11-03) Che necesito integrar la autorizacion entre microservicios en el audit log
+
+85. (2026-11-03) Necesito agregarle  logs con la misma estructura que el resto de los proyecto  al autorization server
+
+86. (2026-11-03) (aprobacion del plan de auditoria en broker para Authorization.Server)

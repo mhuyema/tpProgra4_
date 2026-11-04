@@ -10,12 +10,19 @@ namespace Availability.Application.CasosDeUso
     public class ConsultarAsientosLibres(
         IEventoRepositorio eventoRepositorio,
         IAsientoRepositorio asientoRepositorio,
-        IConsultaReservas consultaReservas)
+        IConsultaReservas consultaReservas,
+        IAuditoriaPublicador auditoria)
     {
         public async Task<List<int>> EjecutarAsync(int eventoId)
         {
             var evento = await eventoRepositorio.ObtenerEventoPorIdAsync(eventoId);
-            if (evento is null) throw new Exception("El evento no existe.");
+            if (evento is null)
+            {
+                var ex = new Exception("El evento no existe.");
+                await auditoria.EmitirErrorAsync(Guid.NewGuid().ToString(), "ConsultarAsientosLibres", ex,
+                    new Dictionary<string, object?> { ["EventoId"] = eventoId });
+                throw ex;
+            }
 
             var catalogo = await asientoRepositorio.ListarPorEventoAsync(eventoId);
             var response = await consultaReservas.ObtenerAsientosOcupadosAsync(eventoId);

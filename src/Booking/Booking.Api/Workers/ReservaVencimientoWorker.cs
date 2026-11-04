@@ -1,3 +1,4 @@
+using Booking.Business.Auditing;
 using Booking.Business.Services;
 
 namespace Booking.Api.Workers;
@@ -63,6 +64,10 @@ public class ReservaVencimientoWorker : BackgroundService
                 {
                     // Un fallo puntual no debe matar el worker: se reintenta en el proximo ciclo
                     _logger.LogError(ex, "[AUDITORIA] Fallo el barrido de reservas vencidas");
+
+                    using var errorScope = _scopeFactory.CreateScope();
+                    await errorScope.ServiceProvider.GetRequiredService<IBookingAuditPublisher>()
+                        .EmitErrorAsync(barridoId.ToString(), "BarridoVencimientos", ex);
                 }
             } while (await timer.WaitForNextTickAsync(stoppingToken));
         }

@@ -1,6 +1,7 @@
 using Authorization.Server;
 using Authorization.Server.Data;
 using Authorization.Server.Models;
+using Broker.Messaging.DependencyInjection;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -39,6 +40,10 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 .AddDefaultTokenProviders();
 
 builder.Services.AddScoped<Authorization.Server.Services.UserRegistrationService>();
+
+builder.Services.AddScoped<Authorization.Server.Auditing.IAuthAuditPublisher, Authorization.Server.Auditing.AuthAuditPublisher>();
+builder.Services.AddBroker(builder.Configuration);
+builder.Services.AddBrokerPublisher();
 
 builder.Services.AddAuthentication(options =>
 {

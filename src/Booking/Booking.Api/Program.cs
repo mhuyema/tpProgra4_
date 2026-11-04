@@ -1,5 +1,6 @@
 using Booking.Api.Handlers;
 using Booking.Api.Workers;
+using Booking.Business.Auditing;
 using Booking.Business.Services;
 using Booking.Data;
 using Booking.Data.Repositories;
@@ -68,6 +69,8 @@ builder.Services.AddBroker(builder.Configuration);
 // Booking también PUBLICA en el topic (avisos de reserva creada y confirmada para Notificaciones, 3.h).
 // Business solo conoce el contrato INotificadorReservas; NotificadorBroker lo implementa con el publisher compartido.
 builder.Services.AddBrokerPublisher();
+// Auditoría estructurada al broker (AuditLogMessage), mismo patrón que Payment. Nunca interrumpe el flujo.
+builder.Services.AddScoped<IBookingAuditPublisher, BookingAuditPublisher>();
 builder.Services.AddScoped<INotificadorReservas, NotificadorBroker>();
 
 // Paso 4 del flujo: Booking consume ReservationRequestedMessage desde la suscripcion "booking" del topic.
