@@ -149,3 +149,11 @@ Navbar    Inter Medium
 66. (2026-11-02) Necesito integrar el login y  el register de Availability.web con el Authorization server, a trraves del Authorization Controller. Tambien quiero que hagas un seed en el authorization donde tenga un primer usuario de prueba.
 
 67. (2026-11-02) (respuesta a pregunta de integración) No queremos que registre, queremos que inicie sesion y cablee lo que ya esta.
+
+68. (2026-11-02) Necesito configurar qque el registro que se genera con el inicio de sesion de google, cree efectivamente un usuario en mi authorization server. Para eso necesito crear el endpoint de register.
+
+69. (2026-11-02) (respuesta a pregunta de alcance) Extraer a /auth/register y que Google lo reuse
+
+70. (2026-11-03) ¿Donde quedo? (consulta sobre el estado del endpoint de register / registro con Google)
+
+71. (2026-11-03) Sí, arreglá el returnUrl de Google

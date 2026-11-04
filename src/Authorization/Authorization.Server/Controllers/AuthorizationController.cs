@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Authorization.Server.Models;
+using Authorization.Server.Services;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Google;
@@ -17,8 +18,43 @@ namespace Authorization.Server.Controllers;
 public sealed class AuthorizationController(
     UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager,
+    UserRegistrationService registration,
     AuthorizationServerOptions serverOptions) : Controller
 {
+    [HttpGet("/auth/register")]
+    [AllowAnonymous]
+    public IActionResult Register(string? returnUrl = null) =>
+        View(new RegisterViewModel { ReturnUrl = returnUrl });
+
+    [HttpPost("/auth/register")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Register(
+        [FromForm] string? name, [FromForm] string? email, [FromForm] string? password,
+        [FromForm] string? confirmPassword, [FromForm] string? returnUrl = null)
+    {
+        IActionResult Fail(string error)
+        {
+            Response.StatusCode = StatusCodes.Status400BadRequest;
+            return View(new RegisterViewModel { Name = name, Email = email, ReturnUrl = returnUrl, Error = error });
+        }
+
+        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(email) || string.IsNullOrEmpty(password))
+            return Fail("Completá todos los campos.");
+        if (!new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email))
+            return Fail("El email no es válido.");
+        if (password != confirmPassword)
+            return Fail("Las contraseñas no coinciden.");
+        if (await userManager.FindByEmailAsync(email) is not null)
+            return Fail("Ya existe una cuenta con ese email.");
+
+        var (created, user) = await registration.RegisterAsync(email.Trim(), name, password);
+        if (!created.Succeeded)
+            return Fail(string.Join(" ", created.Errors.Select(e => e.Description)));
+
+        await signInManager.SignInAsync(user!, isPersistent: false);
+        return Redirect(!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl) ? returnUrl : "/");
+    }
+
     [HttpGet("/auth/login")]
     [AllowAnonymous]
     public IActionResult Login(string? returnUrl = null) =>
@@ -57,13 +93,13 @@ public sealed class AuthorizationController(
         var user = await userManager.FindByEmailAsync(email);
         if (user is null)
         {
-            user = new ApplicationUser { UserName = email, Email = email, EmailConfirmed = true, DisplayName = result.Principal.FindFirstValue(ClaimTypes.Name) };
-            var created = await userManager.CreateAsync(user);
+            var (created, newUser) = await registration.RegisterAsync(email, result.Principal.FindFirstValue(ClaimTypes.Name), password: null);
             if (!created.Succeeded) return BadRequest(created.Errors);
+            user = newUser!;
         }
 
         await signInManager.SignInAsync(user, isPersistent: false);
-        return Redirect(string.IsNullOrWhiteSpace(returnUrl) ? "/" : returnUrl);
+        return Redirect(!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl) ? returnUrl : "/");
     }
 
     [HttpGet("/connect/authorize")]
