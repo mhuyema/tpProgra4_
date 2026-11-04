@@ -173,3 +173,9 @@ Navbar    Inter Medium
 78. (2026-11-03) el token lo crea booking, utilizando el endpoint que ya existe en authorization.¿porque lo cambiastE? / el token lo crea booking pegandole al endpoint de authorization ¿porque lo cambiaste?
 
 79. (2026-11-03) Ok, entonces si implemente esos cambios.
+
+80. (2026-11-03) Tengo que integrar la misma infraestuctura para publicar los logs en el message broker, que tiene payment en auditing, necsito que en los puntos donde genere logs en availabality, pueda publicarlos. Arma el plan de implementacion, tanto para  availability como para booking. Adaptado a cada microservicio.
+
+81. (2026-11-03) (aprobacion del plan de auditoria en broker para Availability y Booking)
+
+82. (2026-11-03) tengo unos conflictos en merges, los arreglas?

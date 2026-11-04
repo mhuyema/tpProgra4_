@@ -76,3 +76,11 @@ Prompts seleccionados, en orden cronológico. Se corrigió la ortografía sin ca
 23. Corregí los diagramas del README: en Booking el publicador ya no está pendiente y en Availability poné los nombres completos de los proyectos.
 
 24. Que los diagramas de las APIs queden parejos: agregá debajo de Booking y Payment una línea que explique la arquitectura, como en Availability.
+
+25. Actualizá el diagrama general del README con el servicio de auditoría y el GET de asientos ocupados, sumá eso a la consistencia eventual (3g) y sacá el TODO de draw.io.
+
+26. Agregá el servicio de auditoría a la tabla de interpretación del README.
+
+27. Agregá en el README las secciones de Authorization Server y del servicio de auditoría (3i) y sus puertos.
+
+28. Sumá a cómo ejecutarlo Authorization Server y el servicio de auditoría.
