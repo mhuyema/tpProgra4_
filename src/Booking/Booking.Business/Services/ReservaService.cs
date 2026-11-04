@@ -1,4 +1,5 @@
 
+using Booking.Business.Auditing;
 using Booking.Business.Messages;
 using Booking.Business.Notifications;
 using Booking.Business.Payments;
@@ -22,6 +23,7 @@ public class ReservaService : IReservaService
     private readonly IPagoGateway _pagoGateway;
     private readonly INotificadorReservas _notificador;
     private readonly ILogger<ReservaService> _logger;
+    private readonly IBookingAuditPublisher _audit;
 
     // Recibe el repositorio, los contratos internos de pagos y notificaciones y el servicio de logging
     // mediante inyección de dependencias.
@@ -29,12 +31,14 @@ public class ReservaService : IReservaService
         IReservaRepository repo,
         IPagoGateway pagoGateway,
         INotificadorReservas notificador,
-        ILogger<ReservaService> logger)
+        ILogger<ReservaService> logger,
+        IBookingAuditPublisher audit)
     {
         _repo = repo;
         _pagoGateway = pagoGateway;
         _notificador = notificador;
         _logger = logger;
+        _audit = audit;
     }
 
     // Se adapta el método original al contrato actualizado con Availability:
@@ -73,6 +77,10 @@ public class ReservaService : IReservaService
             _logger.LogInformation("Reserva {ReservaId} Retenida hasta {VenceEn:O}",
                 reserva.Id, reserva.VenceEn);
 
+            await _audit.EndProcessAsync(m.RequestId.ToString(), "ProcesarSolicitudReserva",
+                new { EstadoFinal = "Retenida" },
+                new Dictionary<string, object?> { ["ReservaId"] = reserva.Id, ["EventoId"] = reserva.EventoId, ["AsientoId"] = reserva.AsientoId, ["VenceEn"] = reserva.VenceEn });
+
             // Aviso 1 del punto 3.h: la reserva quedó creada. Solo se llega acá cuando ESTE mensaje
             // la creó; una re-entrega devuelve la existente más arriba y no vuelve a notificar.
             await NotificarSinFallarAsync("ReservaCreada", reserva,
@@ -101,6 +109,39 @@ public class ReservaService : IReservaService
         await _repo.AgregarAsync(rechazada);
         _logger.LogInformation("Reserva {ReservaId} Rechazada: asiento {AsientoId} del evento {EventoId} ocupado",
             rechazada.Id, rechazada.AsientoId, rechazada.EventoId);
+
+        await _audit.EndProcessAsync(m.RequestId.ToString(), "ProcesarSolicitudReserva",
+            new { EstadoFinal = "Rechazada", Motivo = nameof(MotivoRechazo.AsientoOcupado) },
+            new Dictionary<string, object?> { ["ReservaId"] = rechazada.Id, ["EventoId"] = rechazada.EventoId, ["AsientoId"] = rechazada.AsientoId });
+        return rechazada;
+    }
+
+    public async Task<Reserva> RechazarPorTokenAsync(SolicitudReservaMessage m)
+    {
+        // Idempotencia: una re-entrega devuelve la misma reserva rechazada
+        var existente = await _repo.ObtenerPorSolicitudAsync(m.RequestId);
+        if (existente is not null) return existente;
+
+        var rechazada = new Reserva
+        {
+            Id = Guid.NewGuid(),
+            SolicitudId = m.RequestId,
+            EventoId = m.EventId,
+            AsientoId = m.SeatId,
+            UsuarioId = m.UserId,
+            Importe = m.Amount,
+            Estado = EstadoReserva.Rechazada,
+            Motivo = MotivoRechazo.TokenInvalido,
+            CreadaEn = DateTime.UtcNow
+        };
+
+        await _repo.AgregarAsync(rechazada);
+        _logger.LogWarning("Reserva {ReservaId} Rechazada: identidad no verificada (token ausente, inválido o de otro usuario)",
+            rechazada.Id);
+
+        await _audit.EndProcessAsync(m.RequestId.ToString(), "ProcesarSolicitudReserva",
+            new { EstadoFinal = "Rechazada", Motivo = nameof(MotivoRechazo.TokenInvalido) },
+            new Dictionary<string, object?> { ["ReservaId"] = rechazada.Id });
         return rechazada;
     }
 
@@ -155,6 +196,11 @@ public class ReservaService : IReservaService
                 "[AUDITORIA] FIN de procesamiento. SolicitudId={SolicitudId} ReservaId={ReservaId} EstadoFinal=Vencida",
                 reserva.SolicitudId,
                 reserva.ReservaId);
+
+            // Auditoría al broker: cierre individual por vencimiento, correlado con la solicitud original.
+            await _audit.EndProcessAsync(reserva.SolicitudId.ToString(), "VencerReserva",
+                new { EstadoFinal = "Vencida" },
+                new Dictionary<string, object?> { ["ReservaId"] = reserva.ReservaId });
         }
 
         var cantidad = vencidas.Count;
@@ -218,6 +264,10 @@ public class ReservaService : IReservaService
             "[AUDITORIA] Inicio/reanudación de pago. SolicitudId={SolicitudId} ReservaId={ReservaId} IntentoPagoId={IntentoPagoId}",
             solicitudId, reserva.Id, intentoPagoId);
 
+        var correlationId = solicitudId.ToString();
+        await _audit.InitProcessAsync(correlationId, "ProcesarPago",
+            new Dictionary<string, object?> { ["ReservaId"] = reserva.Id, ["IntentoPagoId"] = intentoPagoId });
+
         // El identificador y el importe provienen de la reserva persistida.
         // Ante una falla de comunicación, el intento puede retomarse sin duplicarlo.
         ResultadoPago resultado;
@@ -239,6 +289,9 @@ public class ReservaService : IReservaService
                 solicitudId,
                 reserva.Id,
                 intentoPagoId);
+
+            await _audit.EmitErrorAsync(correlationId, "ProcesarPago", ex,
+                new Dictionary<string, object?> { ["ReservaId"] = reserva.Id, ["IntentoPagoId"] = intentoPagoId });
 
             var actual = await ObtenerYVerificarVencimientoAsync(solicitudId);
 
@@ -263,6 +316,10 @@ public class ReservaService : IReservaService
                         "[AUDITORIA] FIN de procesamiento. SolicitudId={SolicitudId} ReservaId={ReservaId} EstadoFinal=Rechazada Motivo=PagoNoDisponible",
                         solicitudId,
                         actual.Id);
+
+                    await _audit.EndProcessAsync(correlationId, "ProcesarPago",
+                        new { EstadoFinal = "Rechazada", Motivo = nameof(MotivoRechazo.PagoNoDisponible) },
+                        new Dictionary<string, object?> { ["ReservaId"] = actual.Id });
                 }
 
                 return await ObtenerYVerificarVencimientoAsync(solicitudId);
@@ -309,6 +366,10 @@ public class ReservaService : IReservaService
             _logger.LogInformation(
                 "[AUDITORIA] FIN de procesamiento. SolicitudId={SolicitudId} ReservaId={ReservaId} EstadoFinal={Estado} Motivo={Motivo} IntentoPagoId={IntentoPagoId}",
                 solicitudId, reserva.Id, estadoNuevo, motivo, intentoPagoId);
+
+            await _audit.EndProcessAsync(correlationId, "ProcesarPago",
+                new { EstadoFinal = estadoNuevo.ToString(), Motivo = motivo?.ToString() },
+                new Dictionary<string, object?> { ["ReservaId"] = reserva.Id, ["IntentoPagoId"] = intentoPagoId });
         }
         else
         {
@@ -364,6 +425,9 @@ public class ReservaService : IReservaService
             _logger.LogError(ex,
                 "[AUDITORIA] No se pudo publicar el aviso {Tipo}. SolicitudId={SolicitudId} ReservaId={ReservaId}",
                 tipo, reserva.SolicitudId, reserva.Id);
+
+            await _audit.EmitErrorAsync(reserva.SolicitudId.ToString(), $"Notificar{tipo}", ex,
+                new Dictionary<string, object?> { ["ReservaId"] = reserva.Id });
         }
     }
 
@@ -397,6 +461,10 @@ public class ReservaService : IReservaService
                 _logger.LogInformation(
                     "[AUDITORIA] FIN de procesamiento. SolicitudId={SolicitudId} ReservaId={ReservaId} EstadoFinal=Vencida",
                     solicitudId, reserva.Id);
+
+                await _audit.EndProcessAsync(solicitudId.ToString(), "ProcesarPago",
+                    new { EstadoFinal = "Vencida" },
+                    new Dictionary<string, object?> { ["ReservaId"] = reserva.Id });
             }
 
             reserva = await _repo.ObtenerPorSolicitudAsync(solicitudId)

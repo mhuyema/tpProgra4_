@@ -27,6 +27,9 @@ public sealed class AuthorizationServerOptions
 
     public string GoogleCallbackPath { get; set; } = "/signin-google";
 
+    /// <summary>Secret del cliente "booking-service" (client credentials). Si está vacío, no se registra el cliente.</summary>
+    public string? BookingServiceClientSecret { get; set; }
+
     public string? SigningCertificatePath { get; set; }
     public string? SigningCertificatePassword { get; set; }
     public string? EncryptionCertificatePath { get; set; }

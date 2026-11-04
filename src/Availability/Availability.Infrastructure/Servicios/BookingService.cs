@@ -7,45 +7,68 @@ namespace Availability.Infrastructure.Servicios
     public class BookingService : IConsultaReservas
     {
         private readonly HttpClient _httpClient;
-        public BookingService(HttpClient httpClient)
+        private readonly IAuditoriaPublicador _auditoria;
+        public BookingService(HttpClient httpClient, IAuditoriaPublicador auditoria)
         {
             _httpClient = httpClient;
+            _auditoria = auditoria;
         }
 
         public async Task<EstadoSolicitudDTO> ObtenerEstadoAsync(Guid solicitudId)
         {
-            var response = await _httpClient.GetAsync(
-                $"solicitudes/{solicitudId}"
-            );
+            try
+            {
+                var response = await _httpClient.GetAsync(
+                    $"solicitudes/{solicitudId}"
+                );
 
-            // Booking procesa la solicitud de forma asíncrona (broker): un 404 significa "todavía no la procesó".
-            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                return new EstadoSolicitudDTO(solicitudId, "Pendiente", null);
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    return new EstadoSolicitudDTO(solicitudId, "Pendiente", null);
 
-            response.EnsureSuccessStatusCode();
+                response.EnsureSuccessStatusCode();
 
-            var estado = await response.Content
-                .ReadFromJsonAsync<RespuestaBooking>();
+                var estado = await response.Content
+                    .ReadFromJsonAsync<RespuestaBooking>();
 
-            return estado is null
-                ? throw new Exception("No se pudo obtener el estado de la solicitud.")
-                : new EstadoSolicitudDTO(estado.RequestId, estado.Status, estado.RejectionReason);
+                return estado is null
+                    ? throw new Exception("No se pudo obtener el estado de la solicitud.")
+                    : new EstadoSolicitudDTO(estado.RequestId, estado.Status, estado.RejectionReason);
+            }
+            catch (Exception ex)
+            {
+                // El RequestId es el correlationId de la cadena Availability -> Booking.
+                await _auditoria.EmitirErrorAsync(solicitudId.ToString(), "ConsultarEstadoEnBooking", ex);
+                throw;
+            }
         }
 
         // Contrato de Booking (EstadoSolicitudResponse); se traduce a EstadoSolicitudDTO.
         private record RespuestaBooking(Guid RequestId, string Status, string? RejectionReason);
 
-        public async Task<List<int>> ObtenerAsientosOcupadosAsync(int eventoId)
+        public async Task<AsientosOcupadosResponseDTO> ObtenerAsientosOcupadosAsync(int eventoId)
         {
-            // TEMPORAL: Booking todavía no expone eventos/{id}/asientos-ocupados; se devuelve vacío hasta que exista.
-            //var response = await _httpClient.GetAsync(
-            //    $"eventos/{eventoId}/asientos-ocupados"
-            //);
-            //response.EnsureSuccessStatusCode();
-            //var asientosOcupados = await response.Content
-            //    .ReadFromJsonAsync<List<int>>();
-            //return asientosOcupados ?? new List<int>();
-            return await Task.FromResult(new List<int>());
+            try
+            {
+                var response = await _httpClient.GetAsync(
+                    $"eventos/{eventoId}/asientos-ocupados"
+                );
+
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    return new AsientosOcupadosResponseDTO();
+
+                response.EnsureSuccessStatusCode();
+
+                var asientosOcupados = await response.Content
+                    .ReadFromJsonAsync<AsientosOcupadosResponseDTO>();
+
+                return asientosOcupados ?? new AsientosOcupadosResponseDTO();
+            }
+            catch (Exception ex)
+            {
+                await _auditoria.EmitirErrorAsync(Guid.NewGuid().ToString(), "ConsultarAsientosOcupadosEnBooking", ex,
+                    new Dictionary<string, object?> { ["EventoId"] = eventoId });
+                throw;
+            }
         }
     }
 }

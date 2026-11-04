@@ -4,7 +4,6 @@ using Availability.Application.CasosDeUso;
 using Availability.Web.Models;
 using Availability.Web.Models.Components;
 using Availability.Web.Models.Mapping;
-
 namespace Availability.Web.Controllers;
 
 public class HomeController(ListarEventos listarEventos) : Controller

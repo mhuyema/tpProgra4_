@@ -2,7 +2,7 @@
   "profiles": {
     "http": {
       "commandName": "Project",
-      "launchBrowser": false,
+      "launchBrowser": true,
       "applicationUrl": "http://localhost:5305",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"

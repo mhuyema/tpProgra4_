@@ -1,0 +1,78 @@
+/* BOMBO design tokens — fuente: wwwroot/entradas_design_system.md */
+:root {
+  /* Acentos */
+  --primary-fixed: #c8f250;
+  --on-primary-fixed: #161f00;
+  --primary: #ffffff;
+
+  /* Superficies */
+  --background: #131313;
+  --surface-lowest: #0e0e0e;
+  --surface-low: #1c1b1b;
+  --surface: #201f1f;
+  --surface-high: #2a2a2a;
+  --surface-highest: #353534;
+
+  /* Texto */
+  --on-surface: #e5e2e1;
+  --on-surface-variant: #c5c9b0;
+  --secondary: #c6c6c7;
+
+  /* Feedback */
+  --error: #ffb4ab;
+  --on-error: #690005;
+
+  /* Bordes y brillos */
+  --outline: rgba(255, 255, 255, 0.08);
+  --acid-glow: 0 0 24px rgba(200, 242, 80, 0.35);
+
+  /* Radios */
+  --radius-full: 9999px;
+  --radius-default: 1rem;
+  --radius-card: 1.5rem;
+  --radius-xl: 3rem;
+
+  /* Tipografías */
+  --font-display: 'Outfit', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-label: 'Inter', sans-serif;
+  --font-anton: 'Anton', sans-serif;
+}
+
+body.bombo {
+  background: var(--background);
+  color: var(--on-surface);
+  font-family: var(--font-body);
+  font-size: 15px;
+  margin-bottom: 0;
+}
+
+/* Escala tipográfica */
+.bombo-headline-xl, .bombo-headline-lg, .bombo-headline-md, .bombo-headline-sm {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  color: var(--primary);
+  margin: 0;
+}
+.bombo-headline-xl { font-size: 72px; line-height: 74px; font-weight: 900; letter-spacing: -0.03em; }
+.bombo-headline-lg { font-size: 48px; line-height: 52px; font-weight: 800; letter-spacing: -0.025em; }
+.bombo-headline-md { font-family: var(--font-anton); font-size: 28px; line-height: 34px; font-weight: 400; letter-spacing: -0.015em; }
+.bombo-headline-sm { font-family: var(--font-anton); font-size: 22px; line-height: 28px; font-weight: 400; letter-spacing: -0.01em; }
+
+.bombo-body-lg { font-size: 18px; font-weight: 400; }
+.bombo-body-md { font-size: 15px; font-weight: 400; }
+.bombo-body-sm { font-size: 13px; font-weight: 400; }
+
+.bombo-label-lg, .bombo-label-md, .bombo-label-sm {
+  font-family: var(--font-label);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.bombo-label-lg { font-weight: 500; font-size: 14px; letter-spacing: 0.06em; }
+.bombo-label-md { font-weight: 500; font-size: 12px; letter-spacing: 0.08em; }
+.bombo-label-sm { font-weight: 400; font-size: 10px; letter-spacing: 0.1em; }
+
+@media (max-width: 767px) {
+  .bombo-headline-xl { font-size: 44px; line-height: 46px; }
+  .bombo-headline-lg { font-size: 34px; line-height: 38px; }
+}

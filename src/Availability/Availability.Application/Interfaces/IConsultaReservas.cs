@@ -7,7 +7,7 @@ namespace Availability.Application.Interfaces
     /// </summary>
     public interface IConsultaReservas
     {
-        Task<List<int>> ObtenerAsientosOcupadosAsync(int eventoId);
+        Task<AsientosOcupadosResponseDTO> ObtenerAsientosOcupadosAsync(int eventoId);
         Task<EstadoSolicitudDTO> ObtenerEstadoAsync(Guid solicitudId);
     }
 }

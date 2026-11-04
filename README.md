@@ -169,6 +169,16 @@ Es un solo proyecto porque no tiene reglas de negocio: guarda cada `AuditLogMess
 
 El detalle del servicio de auditoría está en su [README](src/AuditLog/README.md).
 
+#### Validación de identidad en la reserva (validación delegada)
+
+1. El usuario inicia sesión en Availability.Web (OIDC contra el Authorization Server). El access token queda guardado en la sesión (`SaveTokens`).
+2. Al confirmar una reserva, Availability.Web toma ese token y lo envía en el campo `AccessToken` de `ReservationRequestedMessage` (contrato en `Broker.Messaging`). No se guarda en la base de Availability.
+3. Booking, antes de procesar el mensaje, llama a `GET {Auth:Authority}/api/auth/validate` con `Authorization: Bearer <token>`. Respuesta `200 { valid, subject, email }` si es válido, `401` si no.
+4. Booking exige que `subject` sea igual al `UserId` del mensaje. Si el token falta, es inválido, venció (dura 15 minutos) o es de otro usuario, la solicitud queda `Rechazada` con motivo `TokenInvalido` (visible en la pantalla de estado) y el mensaje no se reintenta.
+5. Si el Authorization Server no responde, Booking no rechaza: deja que el broker reentregue el mensaje.
+
+El token es un secreto: no se loguea. Mensajes sin `AccessToken` (versiones anteriores) se rechazan igual.
+
 ### Servicio de notificaciones: un solo proyecto, dominio anémico
 
 ```mermaid
@@ -253,7 +263,7 @@ Hay dos formas: con Visual Studio o con Docker.
 
    AuditLog.Api no tiene User Secrets: la connection string se le pasa con la variable de entorno `SERVICEBUS_CONNECTION_STRING`. Authorization.Server necesita además las credenciales de Google, que se cargan como se explica en su [README](src/Authorization/Authorization.Server/README.md).
 2. Tener SQL Server LocalDB, que viene con Visual Studio. Las bases (Availability, BookingDb, PaymentDb y AuthorizationDb) se crean solas al arrancar cada servicio.
-3. Levantar los servicios. En Visual Studio: clic derecho en la solución → "Configurar proyectos de inicio" → "Varios proyectos de inicio", y marcar Authorization.Server, Payment.Api, Booking.Api, Notifications.Api, AuditLog.Api y Availability.Web con la acción "Iniciar", en ese orden.
+3. Levantar los servicios. En Visual Studio: clic derecho en la solución → "Configurar proyectos de inicio" → "Varios proyectos de inicio", y marcar Authorization.Server, Payment.Api, Booking.Api, Notifications.Api, AuditLog.Api y Availability.Web con la acción "Iniciar", en ese orden. Authorization Server (`https://localhost:7000`) debe estar levantado antes que los demás: Availability.Web inicia sesión contra él y Booking le valida el token de cada reserva.
 4. Entrar a https://localhost:7056
 
 Puertos de cada servicio:

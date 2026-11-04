@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Booking.Data\Booking.Data.csproj" />
+    <ProjectReference Include="..\..\Broker\Broker.Messaging\Broker.Messaging.csproj" />
   </ItemGroup>
 
 </Project>

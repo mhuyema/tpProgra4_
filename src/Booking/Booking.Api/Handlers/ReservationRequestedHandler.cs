@@ -1,3 +1,5 @@
+using Booking.Business.Auditing;
+using Booking.Business.Auth;
 using Booking.Business.Messages;
 using Booking.Business.Services;
 using Booking.Data.Entities;
@@ -15,11 +17,15 @@ namespace Booking.Api.Handlers;
 public class ReservationRequestedHandler : IMessageHandler<ReservationRequestedMessage>
 {
     private readonly IReservaService _service;
+    private readonly IValidadorToken _validadorToken;
     private readonly ILogger<ReservationRequestedHandler> _logger;
+    private readonly IBookingAuditPublisher _audit;
 
-    public ReservationRequestedHandler(IReservaService service, ILogger<ReservationRequestedHandler> logger)
+    public ReservationRequestedHandler(IReservaService service, IValidadorToken validadorToken, ILogger<ReservationRequestedHandler> logger, IBookingAuditPublisher audit)
     {
+        _audit = audit;
         _service = service;
+        _validadorToken = validadorToken;
         _logger = logger;
     }
 
@@ -35,6 +41,10 @@ public class ReservationRequestedHandler : IMessageHandler<ReservationRequestedM
         {
             _logger.LogError("[AUDITORIA] Mensaje incompleto, se descarta. RequestId={RequestId} UserId={UserId}",
                 message.RequestId, message.UserId);
+            await _audit.EmitErrorAsync(correlationId, "ProcesarSolicitudReserva",
+                new InvalidOperationException("Mensaje incompleto, se descarta."),
+                new Dictionary<string, object?> { ["RequestId"] = message.RequestId, ["UserId"] = message.UserId },
+                cancellationToken);
             return;
         }
 
@@ -44,12 +54,33 @@ public class ReservationRequestedHandler : IMessageHandler<ReservationRequestedM
             "[AUDITORIA] INICIO de procesamiento. SolicitudId={SolicitudId} Evento={EventoId} Asiento={AsientoId} Usuario={UsuarioId}",
             message.RequestId, message.EventId, message.SeatId, message.UserId);
 
+        await _audit.InitProcessAsync(correlationId, "ProcesarSolicitudReserva",
+            new Dictionary<string, object?> { ["EventoId"] = message.EventId, ["AsientoId"] = message.SeatId, ["UsuarioId"] = message.UserId },
+            cancellationToken);
+
+        try
+        {
         var solicitud = new SolicitudReservaMessage(
                      message.RequestId,
                      message.EventId,
                      message.SeatId,
                      message.UserId,
                      message.Amount);
+
+        // Verificación de identidad (validación delegada en el Authorization Server). El token debe ser válido
+        // Y pertenecer al usuario que dice el mensaje (evita suplantar a otro UserId).
+        // Si no lo es, reintentar no lo arregla: se rechaza la solicitud y se confirma el mensaje.
+        // Si el Authorization Server no responde, ValidarAsync lanza y el broker reentrega.
+        // Nunca se loguea el token.
+        var token = await _validadorToken.ValidarAsync(message.AccessToken, cancellationToken);
+        if (!token.Valido || !string.Equals(token.Subject, message.UserId, StringComparison.Ordinal))
+        {
+            _logger.LogWarning(
+                "[AUDITORIA] Identidad no verificada, se rechaza. SolicitudId={SolicitudId} TokenPresente={TokenPresente} TokenValido={TokenValido}",
+                message.RequestId, !string.IsNullOrWhiteSpace(message.AccessToken), token.Valido);
+            await _service.RechazarPorTokenAsync(solicitud);
+            return;
+        }
 
         // Línea original: procesaba la solicitud, pero no iniciaba el cobro.
         // var reserva = await _service.ProcesarSolicitudAsync(solicitud);
@@ -76,5 +107,17 @@ public class ReservationRequestedHandler : IMessageHandler<ReservationRequestedM
         _logger.LogInformation(
             "[AUDITORIA] FIN del procesamiento del mensaje. SolicitudId={SolicitudId} ReservaId={ReservaId} EstadoActual={Estado} Motivo={Motivo}",
             reserva.SolicitudId, reserva.Id, reserva.Estado, reserva.Motivo);
+
+        await _audit.EndProcessAsync(correlationId, "ProcesarSolicitudReserva",
+            new { Estado = reserva.Estado.ToString(), Motivo = reserva.Motivo?.ToString() },
+            new Dictionary<string, object?> { ["ReservaId"] = reserva.Id },
+            cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            // Se audita y se relanza: el suscriptor abandona el mensaje y el broker lo reentrega.
+            await _audit.EmitErrorAsync(correlationId, "ProcesarSolicitudReserva", ex, null, cancellationToken);
+            throw;
+        }
     }
 }

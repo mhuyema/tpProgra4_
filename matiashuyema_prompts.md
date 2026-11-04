@@ -131,3 +131,59 @@ Navbar    Inter Medium
 57. (2026-10-31) Agrega un boton cerrar sesion asi puedo simular el cierre
 
 58. (2026-10-31) bueno ahora inicio sesion pero me volvio a tirar un 404 cuando puse confirmar reserva.
+
+59. (2026-10-31) Che me da banda de errores cuando compila porque?
+
+60. (2026-10-31) Matalos vos
+
+61. (2026-10-31) Necesito conectar la consulta de asientos disponibles para que cuando el usuario cargue (sin identificacion) la pagina del evento correspondiente le aparezcan marcados que eventos estan disponibles y cuales no. Para eso necesito cablear la Availability.Application (en el caso de uso ConsultarAsientosLibres) con el controller y la vista correspondiente de mi Availability.web
+
+62. (2026-10-31) (respuesta a preguntas) Contrato: "No, pero lo que podes hacer ahi, es un metodo auxiliar, no tengo claro si en una clase aparte que lo que haga sea en base al id del asiento consultar la fila y demas, para que con eso deduzca con la informacion propia que ya tengo, y que devuelva una lista de asientos de ultima al a vista me explico_". Booking: "espera que lo integra otra persona".
+
+63. (2026-10-31) Sí, hacé que degrade a todo libre
+
+64. (2026-10-31) Necesito agregar un boton que me diga el estado de reserva en la vista de cuando confirmo una reserva, para actualizar el estado.
+
+65. (2026-10-31) y tambien agrega el amount si no esta y el motivo por el que no se aprobo en caso de que suceda.
+
+66. (2026-11-02) Necesito integrar el login y  el register de Availability.web con el Authorization server, a trraves del Authorization Controller. Tambien quiero que hagas un seed en el authorization donde tenga un primer usuario de prueba.
+
+67. (2026-11-02) (respuesta a pregunta de integración) No queremos que registre, queremos que inicie sesion y cablee lo que ya esta.
+
+68. (2026-11-02) Necesito configurar qque el registro que se genera con el inicio de sesion de google, cree efectivamente un usuario en mi authorization server. Para eso necesito crear el endpoint de register.
+
+69. (2026-11-02) (respuesta a pregunta de alcance) Extraer a /auth/register y que Google lo reuse
+
+70. (2026-11-03) ¿Donde quedo? (consulta sobre el estado del endpoint de register / registro con Google)
+
+71. (2026-11-03) Sí, arreglá el returnUrl de Google
+
+72. (2026-11-03) Tengo que enviar el token de authorization para validar con otros servicios, cuando confirmo sacar entrada, una vez registrado necesito pegarle al endpoint del authorization server.
+
+73. (2026-11-03) Implementalo con la validación delegada, lo coordinas con booking tambien. Arma el plan y actualiza los contratos necesarios.
+
+74. (2026-11-03) (respuesta a preguntas del plan) Token inválido/vencido: "Rechazar la solicitud"; mensajes sin AccessToken: "Rechazarlos".
+
+75. (2026-11-03) ¿podria booking crear un token nuevo para envair a payment y poder validar entre si con autorization server?
+
+76. (2026-11-03) valida de forma delegada tambien, implementa la solucion
+
+77. (2026-11-03) reverti estos ultimos cambios. Tenias que integra el payment no cambiar todo el resto.
+
+78. (2026-11-03) el token lo crea booking, utilizando el endpoint que ya existe en authorization.¿porque lo cambiastE? / el token lo crea booking pegandole al endpoint de authorization ¿porque lo cambiaste?
+
+79. (2026-11-03) Ok, entonces si implemente esos cambios.
+
+80. (2026-11-03) Tengo que integrar la misma infraestuctura para publicar los logs en el message broker, que tiene payment en auditing, necsito que en los puntos donde genere logs en availabality, pueda publicarlos. Arma el plan de implementacion, tanto para  availability como para booking. Adaptado a cada microservicio.
+
+81. (2026-11-03) (aprobacion del plan de auditoria en broker para Availability y Booking)
+
+82. (2026-11-03) tengo unos conflictos en merges, los arreglas?
+
+83. (2026-11-03) che me aaprece que me falta configurar la password en el servidor en auditlog
+
+84. (2026-11-03) Che necesito integrar la autorizacion entre microservicios en el audit log
+
+85. (2026-11-03) Necesito agregarle  logs con la misma estructura que el resto de los proyecto  al autorization server
+
+86. (2026-11-03) (aprobacion del plan de auditoria en broker para Authorization.Server)

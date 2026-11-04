@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
+using Payment.Api.Auth;
 using Payment.Api.Services;
 using Payment.Data;
 using Payment.Business.Services;
@@ -14,7 +15,18 @@ var builder = WebApplication.CreateBuilder(args);
 // HTTP/2 explícito también para el perfil HTTP local sin TLS.
 builder.WebHost.ConfigureKestrel(options =>
     options.ConfigureEndpointDefaults(endpoint => endpoint.Protocols = HttpProtocols.Http2));
-builder.Services.AddCodeFirstGrpc();
+// Autenticación servicio a servicio: cada llamada gRPC debe traer el token de servicio de Booking, que se valida
+// de forma delegada contra el Authorization Server (GET /api/auth/validate).
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient<IValidadorTokenServicio, ValidadorTokenServicioHttp>(client =>
+{
+    var authority = builder.Configuration["Auth:Authority"]
+        ?? throw new InvalidOperationException("No se configuró Auth:Authority (URL del Authorization Server).");
+
+    client.BaseAddress = new Uri(authority.TrimEnd('/') + "/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+builder.Services.AddCodeFirstGrpc(options => options.Interceptors.Add<AutenticacionServicioInterceptor>());
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IPaymentAuditPublisher, PaymentAuditPublisher>();

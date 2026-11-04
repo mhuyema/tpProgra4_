@@ -28,6 +28,7 @@ namespace Availability.Infrastructure.Data
             if (string.IsNullOrWhiteSpace(conexionBroker)) 
             {
                 services.AddScoped<IPublicadorSolicitudes, Publicador>();
+                services.AddScoped<IAuditoriaPublicador, AuditoriaPublicadorNulo>();
             }
             else
             {
@@ -36,6 +37,7 @@ namespace Availability.Infrastructure.Data
                 services.PostConfigure<BrokerOptions>(o => o.ConnectionString ??= conexionBroker);
                 services.AddBrokerPublisher();
                 services.AddScoped<IPublicadorSolicitudes, PublicadorServiceBus>();
+                services.AddScoped<IAuditoriaPublicador, AuditoriaPublicadorServiceBus>();
             }
 
             services.AddScoped<IAsientoRepositorio, AsientoRepositorio>();

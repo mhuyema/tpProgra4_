@@ -9,6 +9,10 @@ public interface IReservaService
     // Paso 4: crea la reserva Retenida o Rechazada(AsientoOcupado). Idempotente por SolicitudId
     Task<Reserva> ProcesarSolicitudAsync(SolicitudReservaMessage mensaje);
 
+    // Identidad no verificada (token ausente, inválido, vencido o de otro usuario): crea la reserva
+    // ya Rechazada(TokenInvalido), sin retener el asiento. Idempotente por SolicitudId
+    Task<Reserva> RechazarPorTokenAsync(SolicitudReservaMessage mensaje);
+
     // Paso 6: Retenida -> Confirmada. False = ya no estaba Retenida (ej. vencio)
     Task<bool> ConfirmarAsync(Guid reservaId);
 

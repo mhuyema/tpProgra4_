@@ -1,6 +1,7 @@
 using Authorization.Server;
 using Authorization.Server.Data;
 using Authorization.Server.Models;
+using Broker.Messaging.DependencyInjection;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -38,6 +39,12 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
+builder.Services.AddScoped<Authorization.Server.Services.UserRegistrationService>();
+
+builder.Services.AddScoped<Authorization.Server.Auditing.IAuthAuditPublisher, Authorization.Server.Auditing.AuthAuditPublisher>();
+builder.Services.AddBroker(builder.Configuration);
+builder.Services.AddBrokerPublisher();
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = IdentityConstants.ApplicationScheme;
@@ -54,6 +61,12 @@ builder.Services.AddAuthentication(options =>
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.LoginPath = "/auth/login";
+    // .NET 10 responde 401 (en vez de redirigir) en endpoints [ApiController]; /connect/authorize necesita el redirect al login.
+    options.Events.OnRedirectToLogin = ctx =>
+    {
+        ctx.Response.Redirect(ctx.RedirectUri);
+        return Task.CompletedTask;
+    };
     options.Cookie.Name = "authorization.server.session";
     options.Cookie.HttpOnly = true;
     options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
@@ -69,9 +82,10 @@ builder.Services.AddOpenIddict()
             .SetAccessTokenLifetime(TimeSpan.FromMinutes(15))
             .SetRefreshTokenLifetime(TimeSpan.FromDays(14));
         options.SetAuthorizationEndpointUris("/connect/authorize")
-            .SetTokenEndpointUris("/connect/token");
+            .SetTokenEndpointUris("/connect/token")
+            .SetEndSessionEndpointUris("/connect/logout");
 
-        options.AllowAuthorizationCodeFlow().AllowRefreshTokenFlow();
+        options.AllowAuthorizationCodeFlow().AllowRefreshTokenFlow().AllowClientCredentialsFlow();
         options.RegisterScopes(Scopes.OpenId, Scopes.Email, Scopes.Profile, serverOptions.Audience);
         if (builder.Environment.IsProduction())
             options.AddEncryptionCertificate(encryptionCertificate!).AddSigningCertificate(signingCertificate!);
@@ -79,7 +93,8 @@ builder.Services.AddOpenIddict()
             options.AddDevelopmentEncryptionCertificate().AddDevelopmentSigningCertificate();
         options.UseAspNetCore()
             .EnableAuthorizationEndpointPassthrough()
-            .EnableTokenEndpointPassthrough();
+            .EnableTokenEndpointPassthrough()
+            .EnableEndSessionEndpointPassthrough();
     })
     .AddValidation(options =>
     {
@@ -89,7 +104,7 @@ builder.Services.AddOpenIddict()
         options.UseAspNetCore();
     });
 
-builder.Services.AddControllers();
+builder.Services.AddControllersWithViews();
 
 var app = builder.Build();
 
@@ -103,6 +118,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();

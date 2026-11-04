@@ -1,7 +1,10 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Availability.Application.CasosDeUso;
+using Availability.Application.Servicios;
 using Availability.Web.Models;
 using Availability.Web.Models.Mapping;
 
@@ -10,6 +13,7 @@ namespace Availability.Web.Controllers;
 public class ReservaController(
     ObtenerEvento obtenerEvento,
     ConsultarAsientosLibres consultarAsientos,
+    ArmadorMapaAsientos armadorMapa,
     SolicitarReserva solicitarReserva,
     ConsultarEstadoSolicitud consultarEstado) : Controller
 {
@@ -21,7 +25,8 @@ public class ReservaController(
         var evento = await obtenerEvento.EjecutarAsync(id);
         if (evento is null) return NotFound();
 
-        var asientos = await consultarAsientos.EjecutarAsync(id);
+        var idsLibres = await consultarAsientos.EjecutarAsync(id);
+        var asientos = await armadorMapa.ArmarAsync(id, idsLibres);
         var autenticado = User.Identity?.IsAuthenticated == true;
 
         // Si venía de iniciar sesión (o de un intento fallido), se restaura la selección que había hecho.
@@ -36,25 +41,15 @@ public class ReservaController(
             TempData["LoginError"] as string, TempData["LoginEmail"] as string));
     }
 
-    /// <summary>Login desde el panel de la pantalla de asientos: conserva la selección y vuelve a la misma pantalla.</summary>
+    /// <summary>Login desde el panel de la pantalla de asientos: conserva la selección y vuelve a la misma pantalla tras autenticar en el Authorization Server.</summary>
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> IniciarSesion(IniciarSesionReservaViewModel model)
+    public IActionResult IniciarSesion(IniciarSesionReservaViewModel model)
     {
         if (model.AsientoIds.Count is >= 1 and <= 6)
             GuardarPendiente(new ReservaPendiente(model.EventoId, model.AsientoIds));
 
-        if (!ModelState.IsValid)
-        {
-            TempData["LoginError"] = ModelState.Values
-                .SelectMany(v => v.Errors).Select(e => e.ErrorMessage).FirstOrDefault(m => !string.IsNullOrEmpty(m))
-                ?? "No pudimos iniciar sesión.";
-            TempData["LoginEmail"] = model.Email;
-            return RedirectToAction(nameof(Asientos), new { id = model.EventoId });
-        }
-
-        // Pendiente: validar credenciales con Application/Infrastructure cuando existan.
-        await HttpContext.IniciarSesionAsync(model.Email);
-        return RedirectToAction(nameof(Asientos), new { id = model.EventoId });
+        var volver = Url.Action(nameof(Asientos), new { id = model.EventoId })!;
+        return Challenge(new AuthenticationProperties { RedirectUri = volver }, OpenIdConnectDefaults.AuthenticationScheme);
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -68,8 +63,11 @@ public class ReservaController(
             return RedirectToAction(nameof(Asientos), new { id = model.EventoId });
         }
 
-        // Sin sesión: se guarda la selección y se manda a iniciar sesión, volviendo a esta misma pantalla.
-        if (User.Identity?.IsAuthenticated != true)
+        // El access token viaja en la solicitud para que Booking verifique la identidad contra el Authorization Server.
+        var accessToken = await HttpContext.GetTokenAsync("access_token");
+
+        // Sin sesión (o sesión sin token): se guarda la selección y se manda a iniciar sesión, volviendo a esta misma pantalla.
+        if (User.Identity?.IsAuthenticated != true || string.IsNullOrEmpty(accessToken))
         {
             GuardarPendiente(new ReservaPendiente(model.EventoId, model.AsientoIds));
             var volver = Url.Action(nameof(Asientos), new { id = model.EventoId });
@@ -80,7 +78,7 @@ public class ReservaController(
         {
             var solicitudes = await solicitarReserva.EjecutarAsync(
                 model.EventoId, model.AsientoIds,
-                User.Id(), User.Nombre(), User.Email());
+                User.Id(), User.Nombre(), User.Email(), accessToken);
 
             // RouteValues no serializa colecciones (daría "ids=System.Collections...Guid]"): se arma ids=a&ids=b a mano.
             var query = string.Join("&", solicitudes.Select(s => $"ids={s}"));
@@ -105,7 +103,7 @@ public class ReservaController(
             foreach (var id in ids)
             {
                 var estado = await consultarEstado.EjecutarAsync(id, User.Id());
-                items.Add(new SolicitudEstadoItem(estado.SolicitudId, estado.Estado, estado.Motivo));
+                items.Add(new SolicitudEstadoItem(estado.SolicitudId, estado.Estado, estado.Motivo, estado.Monto));
             }
         }
         catch (Exception)

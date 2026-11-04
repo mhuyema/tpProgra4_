@@ -22,7 +22,7 @@ public sealed class PaymentGrpcTests : IDisposable
         _database = database;
         _factory = new PaymentWebApplicationFactory(database.ConnectionString);
         _channel = GrpcChannel.ForAddress("http://localhost", new GrpcChannelOptions
-        { HttpHandler = _factory.Server.CreateHandler() });
+        { HttpHandler = new EncabezadoBearerHandler(FakeValidadorTokenServicio.TokenBooking, _factory.Server.CreateHandler()) });
         _client = _channel.CreateGrpcService<IPaymentGrpcService>();
     }
 
@@ -122,6 +122,29 @@ public sealed class PaymentGrpcTests : IDisposable
         Assert.Contains(final.Status, new[] { PaymentStatus.APPROVED, PaymentStatus.REJECTED });
         Assert.All(responses, response => Assert.Contains(response.Status,
             new[] { PaymentStatus.PROCESSING, final.Status }));
+    }
+
+    [Theory]
+    [InlineData(null, StatusCode.Unauthenticated)]
+    [InlineData("token-invalido", StatusCode.Unauthenticated)]
+    [InlineData(FakeValidadorTokenServicio.TokenOtroServicio, StatusCode.PermissionDenied)]
+    public async Task CallsWithoutAValidBookingTokenAreRejectedAndDoNotCreatePayments(string? token, StatusCode expected)
+    {
+        using var channel = GrpcChannel.ForAddress("http://localhost", new GrpcChannelOptions
+        { HttpHandler = new EncabezadoBearerHandler(token, _factory.Server.CreateHandler()) });
+        var client = channel.CreateGrpcService<IPaymentGrpcService>();
+        var booking = Guid.NewGuid();
+
+        var error = await Assert.ThrowsAsync<RpcException>(() => client.PayAsync(new PayRequest
+        {
+            BookingId = booking,
+            PaymentAttemptId = Guid.NewGuid(),
+            Amount = 10
+        }));
+
+        Assert.Equal(expected, error.StatusCode);
+        using var db = _database.CreateDbContext();
+        Assert.Empty(new PaymentRepository(db).GetPaymentByBookingId(booking));
     }
 
     private PayRequest CreateStoredPayment(DomainStatus status)

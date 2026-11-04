@@ -11,20 +11,20 @@ namespace Availability.Infrastructure.Repositorios
     /// </summary>
     public class Publicador(IMessagePublisher broker) : IPublicadorSolicitudes
     {
-        public Task PublicarAsync(SolicitudReserva solicitud)
+        public Task PublicarAsync(SolicitudReserva solicitud, string accessToken)
         {
             var mensaje = new ReservationRequestedMessage(
-                solicitud.RequestId, solicitud.EventoId, solicitud.AsientoId, solicitud.UsuarioId, solicitud.Monto);
+                solicitud.RequestId, solicitud.EventoId, solicitud.AsientoId, solicitud.UsuarioId, solicitud.Monto, accessToken);
 
             return broker.PublishAsync(mensaje, solicitud.RequestId.ToString());
         }
     }
     public class PublicadorFalso(IMessagePublisher broker) : IPublicadorSolicitudes
     {
-        public Task PublicarAsync(SolicitudReserva solicitud)
+        public Task PublicarAsync(SolicitudReserva solicitud, string accessToken)
         {
             var mensaje = new ReservationRequestedMessage(
-                solicitud.RequestId, solicitud.EventoId, solicitud.AsientoId, solicitud.UsuarioId, solicitud.Monto);
+                solicitud.RequestId, solicitud.EventoId, solicitud.AsientoId, solicitud.UsuarioId, solicitud.Monto, accessToken);
 
             return broker.PublishAsync(mensaje, solicitud.RequestId.ToString());
         }
