@@ -63,8 +63,11 @@ public class ReservaController(
             return RedirectToAction(nameof(Asientos), new { id = model.EventoId });
         }
 
-        // Sin sesión: se guarda la selección y se manda a iniciar sesión, volviendo a esta misma pantalla.
-        if (User.Identity?.IsAuthenticated != true)
+        // El access token viaja en la solicitud para que Booking verifique la identidad contra el Authorization Server.
+        var accessToken = await HttpContext.GetTokenAsync("access_token");
+
+        // Sin sesión (o sesión sin token): se guarda la selección y se manda a iniciar sesión, volviendo a esta misma pantalla.
+        if (User.Identity?.IsAuthenticated != true || string.IsNullOrEmpty(accessToken))
         {
             GuardarPendiente(new ReservaPendiente(model.EventoId, model.AsientoIds));
             var volver = Url.Action(nameof(Asientos), new { id = model.EventoId });
@@ -75,7 +78,7 @@ public class ReservaController(
         {
             var solicitudes = await solicitarReserva.EjecutarAsync(
                 model.EventoId, model.AsientoIds,
-                User.Id(), User.Nombre(), User.Email());
+                User.Id(), User.Nombre(), User.Email(), accessToken);
 
             // RouteValues no serializa colecciones (daría "ids=System.Collections...Guid]"): se arma ids=a&ids=b a mano.
             var query = string.Join("&", solicitudes.Select(s => $"ids={s}"));

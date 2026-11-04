@@ -12,7 +12,7 @@ namespace Availability.Application.CasosDeUso
     {
         public const int MaxAsientos = 6;
 
-        public async Task<List<Guid>> EjecutarAsync (int IdEvento, IReadOnlyList<int> IdAsientos, string IdUsuario, string nombre, string email)
+        public async Task<List<Guid>> EjecutarAsync (int IdEvento, IReadOnlyList<int> IdAsientos, string IdUsuario, string nombre, string email, string accessToken)
         {
             var ids = IdAsientos.Distinct().ToList();
 
@@ -41,7 +41,7 @@ namespace Availability.Application.CasosDeUso
             foreach (var solicitud in creadas)
             {
                 await solicitudes.GuardarAsync(solicitud);
-                await publicador.PublicarAsync(solicitud);
+                await publicador.PublicarAsync(solicitud, accessToken);
             }
 
             return creadas.Select(s => s.RequestId).ToList();

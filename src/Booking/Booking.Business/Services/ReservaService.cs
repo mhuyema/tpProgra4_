@@ -104,6 +104,31 @@ public class ReservaService : IReservaService
         return rechazada;
     }
 
+    public async Task<Reserva> RechazarPorTokenAsync(SolicitudReservaMessage m)
+    {
+        // Idempotencia: una re-entrega devuelve la misma reserva rechazada
+        var existente = await _repo.ObtenerPorSolicitudAsync(m.RequestId);
+        if (existente is not null) return existente;
+
+        var rechazada = new Reserva
+        {
+            Id = Guid.NewGuid(),
+            SolicitudId = m.RequestId,
+            EventoId = m.EventId,
+            AsientoId = m.SeatId,
+            UsuarioId = m.UserId,
+            Importe = m.Amount,
+            Estado = EstadoReserva.Rechazada,
+            Motivo = MotivoRechazo.TokenInvalido,
+            CreadaEn = DateTime.UtcNow
+        };
+
+        await _repo.AgregarAsync(rechazada);
+        _logger.LogWarning("Reserva {ReservaId} Rechazada: identidad no verificada (token ausente, inválido o de otro usuario)",
+            rechazada.Id);
+        return rechazada;
+    }
+
     public async Task<bool> ConfirmarAsync(Guid reservaId)
     {
         var ok = await _repo.TransicionarAsync(

@@ -133,6 +133,19 @@ public sealed class AuthorizationController(
     [AllowAnonymous]
     public async Task<IActionResult> Exchange()
     {
+        var request = HttpContext.GetOpenIddictServerRequest() ?? throw new InvalidOperationException("Solicitud OAuth inválida.");
+
+        // Servicio a servicio (Booking -> Payment): no hay usuario, el sujeto es el propio cliente.
+        // OpenIddict ya autenticó client_id/client_secret antes de llegar acá.
+        if (request.IsClientCredentialsGrantType())
+        {
+            var servicio = new ClaimsIdentity(OpenIddictServerAspNetCoreDefaults.AuthenticationScheme, Claims.Name, Claims.Role);
+            servicio.AddClaim(new Claim(Claims.Subject, request.ClientId ?? throw new InvalidOperationException("Falta client_id.")));
+            servicio.SetResources(serverOptions.Audience);
+            servicio.SetDestinations(static _ => new[] { Destinations.AccessToken });
+            return SignIn(new ClaimsPrincipal(servicio), OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+        }
+
         var result = await HttpContext.AuthenticateAsync(OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
         if (!result.Succeeded || result.Principal is null) return Forbid(OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
         return SignIn(result.Principal, OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);

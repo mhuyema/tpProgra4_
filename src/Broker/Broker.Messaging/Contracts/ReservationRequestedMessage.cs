@@ -14,10 +14,16 @@ namespace Broker.Messaging.Contracts;
 /// <param name="SeatId">Identificador del asiento solicitado.</param>
 /// <param name="UserId">Identificador del usuario que solicita la reserva.</param>
 /// <param name="Amount">Importe de la reserva determinado por Availability.</param>
+/// <param name="AccessToken">
+/// Access token del usuario emitido por el Authorization Server. Booking lo valida contra
+/// GET /api/auth/validate y exige que su subject coincida con UserId; si falta o no es válido,
+/// rechaza la solicitud. Es un secreto: no se loguea. Vence a los 15 minutos.
+/// </param>
 public record ReservationRequestedMessage(
     Guid RequestId,
     int EventId,
     int SeatId,
     string UserId,
-    decimal Amount
+    decimal Amount,
+    string? AccessToken = null
 );

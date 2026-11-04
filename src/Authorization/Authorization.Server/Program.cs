@@ -80,7 +80,7 @@ builder.Services.AddOpenIddict()
             .SetTokenEndpointUris("/connect/token")
             .SetEndSessionEndpointUris("/connect/logout");
 
-        options.AllowAuthorizationCodeFlow().AllowRefreshTokenFlow();
+        options.AllowAuthorizationCodeFlow().AllowRefreshTokenFlow().AllowClientCredentialsFlow();
         options.RegisterScopes(Scopes.OpenId, Scopes.Email, Scopes.Profile, serverOptions.Audience);
         if (builder.Environment.IsProduction())
             options.AddEncryptionCertificate(encryptionCertificate!).AddSigningCertificate(signingCertificate!);

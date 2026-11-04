@@ -39,7 +39,32 @@ public static class SeedData
             Requirements = { Requirements.Features.ProofKeyForCodeExchange }
         };
 
-        var application = await manager.FindByClientIdAsync(clientId);
+        await UpsertAsync(manager, descriptor);
+        await SeedBookingServiceAsync(manager, options);
+    }
+
+    // Cliente confidencial de Booking: pide un token de servicio (client credentials) para llamar a Payment.
+    private static async Task SeedBookingServiceAsync(IOpenIddictApplicationManager manager, AuthorizationServerOptions options)
+    {
+        if (string.IsNullOrWhiteSpace(options.BookingServiceClientSecret)) return;
+
+        await UpsertAsync(manager, new OpenIddictApplicationDescriptor
+        {
+            ClientId = "booking-service",
+            ClientSecret = options.BookingServiceClientSecret,
+            DisplayName = "Booking (servicio)",
+            ClientType = ClientTypes.Confidential,
+            Permissions =
+            {
+                Permissions.Endpoints.Token,
+                Permissions.GrantTypes.ClientCredentials
+            }
+        });
+    }
+
+    private static async Task UpsertAsync(IOpenIddictApplicationManager manager, OpenIddictApplicationDescriptor descriptor)
+    {
+        var application = await manager.FindByClientIdAsync(descriptor.ClientId!);
         if (application is null)
             await manager.CreateAsync(descriptor);
         else

@@ -5,6 +5,7 @@ using Booking.Data;
 using Booking.Data.Repositories;
 using Payment.Contracts;
 using ProtoBuf.Grpc.ClientFactory;
+using Booking.Business.Auth;
 using Booking.Business.Payments;
 using Booking.Business.Notifications;
 using Booking.API.Integrations;
@@ -35,6 +36,29 @@ builder.Services.AddCodeFirstGrpcClient<IPaymentGrpcService>(options =>
 // Vincula el contrato interno de pagos con su implementación gRPC,
 // manteniendo desacoplada la capa Business de la comunicación externa.
 builder.Services.AddScoped<IPagoGateway, PagoGrpcGateway>();
+
+// Validación delegada de identidad: Booking verifica el access token de cada solicitud llamando
+// a GET /api/auth/validate del Authorization Server (Auth:Authority). Business solo conoce IValidadorToken.
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient<IValidadorToken, ValidadorTokenHttp>(client =>
+{
+    var authority = builder.Configuration["Auth:Authority"]
+        ?? throw new InvalidOperationException("No se configuró Auth:Authority (URL del Authorization Server).");
+
+    client.BaseAddress = new Uri(authority.TrimEnd('/') + "/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+
+// Token de SERVICIO para llamar a Payment: Booking lo pide a /connect/token del Authorization Server (client credentials)
+// y PagoGrpcGateway lo adjunta en la metadata gRPC. Payment lo valida de forma delegada contra el mismo servidor.
+builder.Services.AddHttpClient<IProveedorTokenServicio, ProveedorTokenServicio>(client =>
+{
+    var authority = builder.Configuration["Auth:Authority"]
+        ?? throw new InvalidOperationException("No se configuró Auth:Authority (URL del Authorization Server).");
+
+    client.BaseAddress = new Uri(authority.TrimEnd('/') + "/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
 
 // --- Broker (libreria compartida Broker.Messaging) ---
 // AddBroker registra el ServiceBusClient (singleton). La cadena de conexion NO va en el repo:

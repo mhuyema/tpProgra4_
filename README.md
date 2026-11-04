@@ -132,6 +132,16 @@ El detalle de Payment está en su [README](src/Payment/README.md).
 
 <!-- TODO Nicolás: tecnología usada, flujo para usuarios y flujo entre servicios (client credentials) -->
 
+#### Validación de identidad en la reserva (validación delegada)
+
+1. El usuario inicia sesión en Availability.Web (OIDC contra el Authorization Server). El access token queda guardado en la sesión (`SaveTokens`).
+2. Al confirmar una reserva, Availability.Web toma ese token y lo envía en el campo `AccessToken` de `ReservationRequestedMessage` (contrato en `Broker.Messaging`). No se guarda en la base de Availability.
+3. Booking, antes de procesar el mensaje, llama a `GET {Auth:Authority}/api/auth/validate` con `Authorization: Bearer <token>`. Respuesta `200 { valid, subject, email }` si es válido, `401` si no.
+4. Booking exige que `subject` sea igual al `UserId` del mensaje. Si el token falta, es inválido, venció (dura 15 minutos) o es de otro usuario, la solicitud queda `Rechazada` con motivo `TokenInvalido` (visible en la pantalla de estado) y el mensaje no se reintenta.
+5. Si el Authorization Server no responde, Booking no rechaza: deja que el broker reentregue el mensaje.
+
+El token es un secreto: no se loguea. Mensajes sin `AccessToken` (versiones anteriores) se rechazan igual.
+
 ### Servicio de notificaciones: un solo proyecto, dominio anémico
 
 ```mermaid
@@ -193,7 +203,7 @@ Hay dos formas: con Visual Studio o con Docker.
 1. Cargar la connection string del Service Bus en Availability.Web, Booking.Api y Notificaciones:
    `dotnet user-secrets set "Broker:ConnectionString" "<connection string>"`
 2. Tener SQL Server LocalDB, que viene con Visual Studio. Las bases (Availability, BookingDb y PaymentDb) se crean solas al arrancar cada servicio.
-3. Levantar los servicios. En Visual Studio: clic derecho en la solución → "Configurar proyectos de inicio" → "Varios proyectos de inicio", y marcar Payment.Api, Booking.Api y Availability.Web con la acción "Iniciar", en ese orden. Authorization Server y Notificaciones todavía no están en el repo; cuando estén, se suman a la lista (Authorization Server primero).
+3. Levantar los servicios. En Visual Studio: clic derecho en la solución → "Configurar proyectos de inicio" → "Varios proyectos de inicio", y marcar Payment.Api, Booking.Api y Availability.Web con la acción "Iniciar", en ese orden. Authorization Server (`https://localhost:7000`) debe estar levantado antes que los demás: Availability.Web inicia sesión contra él y Booking le valida el token de cada reserva. Notificaciones todavía no está en el repo; cuando esté, se suma a la lista.
 4. Entrar a https://localhost:7056
 
 Puertos de cada servicio:

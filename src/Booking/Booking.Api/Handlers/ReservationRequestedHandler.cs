@@ -1,3 +1,4 @@
+using Booking.Business.Auth;
 using Booking.Business.Messages;
 using Booking.Business.Services;
 using Booking.Data.Entities;
@@ -15,11 +16,13 @@ namespace Booking.Api.Handlers;
 public class ReservationRequestedHandler : IMessageHandler<ReservationRequestedMessage>
 {
     private readonly IReservaService _service;
+    private readonly IValidadorToken _validadorToken;
     private readonly ILogger<ReservationRequestedHandler> _logger;
 
-    public ReservationRequestedHandler(IReservaService service, ILogger<ReservationRequestedHandler> logger)
+    public ReservationRequestedHandler(IReservaService service, IValidadorToken validadorToken, ILogger<ReservationRequestedHandler> logger)
     {
         _service = service;
+        _validadorToken = validadorToken;
         _logger = logger;
     }
 
@@ -50,6 +53,21 @@ public class ReservationRequestedHandler : IMessageHandler<ReservationRequestedM
                      message.SeatId,
                      message.UserId,
                      message.Amount);
+
+        // Verificación de identidad (validación delegada en el Authorization Server). El token debe ser válido
+        // Y pertenecer al usuario que dice el mensaje (evita suplantar a otro UserId).
+        // Si no lo es, reintentar no lo arregla: se rechaza la solicitud y se confirma el mensaje.
+        // Si el Authorization Server no responde, ValidarAsync lanza y el broker reentrega.
+        // Nunca se loguea el token.
+        var token = await _validadorToken.ValidarAsync(message.AccessToken, cancellationToken);
+        if (!token.Valido || !string.Equals(token.Subject, message.UserId, StringComparison.Ordinal))
+        {
+            _logger.LogWarning(
+                "[AUDITORIA] Identidad no verificada, se rechaza. SolicitudId={SolicitudId} TokenPresente={TokenPresente} TokenValido={TokenValido}",
+                message.RequestId, !string.IsNullOrWhiteSpace(message.AccessToken), token.Valido);
+            await _service.RechazarPorTokenAsync(solicitud);
+            return;
+        }
 
         // Línea original: procesaba la solicitud, pero no iniciaba el cobro.
         // var reserva = await _service.ProcesarSolicitudAsync(solicitud);

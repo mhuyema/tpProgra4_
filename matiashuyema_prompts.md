@@ -157,3 +157,19 @@ Navbar    Inter Medium
 70. (2026-11-03) ¿Donde quedo? (consulta sobre el estado del endpoint de register / registro con Google)
 
 71. (2026-11-03) Sí, arreglá el returnUrl de Google
+
+72. (2026-11-03) Tengo que enviar el token de authorization para validar con otros servicios, cuando confirmo sacar entrada, una vez registrado necesito pegarle al endpoint del authorization server.
+
+73. (2026-11-03) Implementalo con la validación delegada, lo coordinas con booking tambien. Arma el plan y actualiza los contratos necesarios.
+
+74. (2026-11-03) (respuesta a preguntas del plan) Token inválido/vencido: "Rechazar la solicitud"; mensajes sin AccessToken: "Rechazarlos".
+
+75. (2026-11-03) ¿podria booking crear un token nuevo para envair a payment y poder validar entre si con autorization server?
+
+76. (2026-11-03) valida de forma delegada tambien, implementa la solucion
+
+77. (2026-11-03) reverti estos ultimos cambios. Tenias que integra el payment no cambiar todo el resto.
+
+78. (2026-11-03) el token lo crea booking, utilizando el endpoint que ya existe en authorization.¿porque lo cambiastE? / el token lo crea booking pegandole al endpoint de authorization ¿porque lo cambiaste?
+
+79. (2026-11-03) Ok, entonces si implemente esos cambios.

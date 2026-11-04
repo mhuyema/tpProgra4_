@@ -25,4 +25,5 @@ public class Reserva
 
 public enum EstadoReserva { Retenida, Confirmada, Rechazada, Vencida }
 
-public enum  MotivoRechazo { AsientoOcupado, PagoFallido, PagoNoDisponible }
+// TokenInvalido va al final: el enum se guarda como int, así no se altera el valor de los existentes.
+public enum  MotivoRechazo { AsientoOcupado, PagoFallido, PagoNoDisponible, TokenInvalido }

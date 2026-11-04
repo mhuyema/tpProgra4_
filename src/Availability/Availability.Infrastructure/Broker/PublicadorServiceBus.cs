@@ -11,14 +11,15 @@ namespace Availability.Infrastructure.Broker
     /// </summary>
     public class PublicadorServiceBus(IMessagePublisher publisher) : IPublicadorSolicitudes
     {
-        public Task PublicarAsync(SolicitudReserva solicitud) =>
+        public Task PublicarAsync(SolicitudReserva solicitud, string accessToken) =>
             publisher.PublishAsync(
                 new ReservationRequestedMessage(
                     solicitud.RequestId,
                     solicitud.EventoId,
                     solicitud.AsientoId,
                     solicitud.UsuarioId,
-                    solicitud.Monto),
+                    solicitud.Monto,
+                    accessToken),
                 solicitud.RequestId.ToString());
     }
 }
