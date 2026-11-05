@@ -106,3 +106,5 @@ Prompts seleccionados, en orden cronológico. Se corrigió la ortografía sin ca
 34. Revisá y actualizá el README con lo que falte.
 
 35. En el docker-compose, que Notifications valide el token contra el Authorization Server del compose y no contra uno de afuera.
+
+36. En N-Layer, Business no debería depender del broker: mové BookingAuditPublisher y PaymentAuditPublisher a la Api de cada uno (la interfaz queda en Business) y sacá la referencia a Broker.Messaging del csproj de Business.

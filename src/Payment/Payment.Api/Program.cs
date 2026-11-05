@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
+using Payment.Api.Auditing;
 using Payment.Api.Auth;
 using Payment.Api.Services;
 using Payment.Data;

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using Payment.Api.Auditing;
 using Payment.Business.Auditing;
 using Payment.Business.Exceptions;
 using Payment.Business.Services;
