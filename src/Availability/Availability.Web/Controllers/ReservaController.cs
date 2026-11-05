@@ -15,9 +15,8 @@ public class ReservaController(
     ConsultarAsientosLibres consultarAsientos,
     ArmadorMapaAsientos armadorMapa,
     SolicitarReserva solicitarReserva,
-    ConsultarEstadoSolicitud consultarEstado,
-    ConsultarNotificaciones consultarNotificaciones) : Controller
-{   
+    ConsultarEstadoSolicitud consultarEstado) : Controller
+{
     private const string PendienteKey = "ReservaPendiente";
 
     [HttpGet]
@@ -111,14 +110,6 @@ public class ReservaController(
         {
             return NotFound();
         }
-
-        // Avisos del servicio de Notificaciones (punto 3.h): "reserva creada" y "reserva confirmada".
-        // Llegan despues de que booking procesa la reserva, si el usuario abre esta pantalla muy rapido todavia puede no haber avisos,
-        // y aparecen el tocar "Actualizar estado". En el caso de uso nunca lanza excepcion, si notificaciones esta caido devuelve una lista vacia.
-        var avisos = await consultarNotificaciones.EjecutarAsync(User.Id(), items.Select(i => i.SolicitudId).ToList());
-        var notificaciones = avisos
-            .Select(a => new NotificacionItem(a.Tipo, a.Mensaje, a.EnviadaUtc))
-            .ToList();
 
         return View(new EstadoSolicitudViewModel(evento.Id, evento.ToSummary(), items));
     }
