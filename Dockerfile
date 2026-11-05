@@ -7,7 +7,8 @@ ARG PROJECT
 WORKDIR /repo
 COPY src/ src/
 # Cache de NuGet compartido entre builds: los paquetes no se re-descargan al cambiar código.
-RUN --mount=type=cache,target=/root/.nuget/packages \
+# sharing=locked: los builds en paralelo usan la caché de a uno, si no se pisan al descomprimir paquetes.
+RUN --mount=type=cache,target=/root/.nuget/packages,sharing=locked \
     dotnet publish "$PROJECT" -c Release -o /app --nologo
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime

@@ -84,3 +84,15 @@ Prompts seleccionados, en orden cronológico. Se corrigió la ortografía sin ca
 27. Agregá en el README las secciones de Authorization Server y del servicio de auditoría (3i) y sus puertos.
 
 28. Sumá a cómo ejecutarlo Authorization Server y el servicio de auditoría.
+
+## 2026-11-05
+
+### Etapa 6: Correcciones de integración
+
+29. Acabo de modificar un error que surgió después de un merge en docker-compose. Verificá si quedó bien.
+
+30. Cuando cancelo el login con Google me tira AuthenticationFailureException. Arreglalo para que vuelva al login, y agregá en el Dockerfile lo de la caché de NuGet para que los builds en paralelo no se pisen.
+
+31. Verificá si el docker compose up --build anduvo.
+
+32. En el estado de la reserva los avisos siempre muestran 0, ¿por qué?
