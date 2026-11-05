@@ -1,8 +1,34 @@
 # Levanta todo el sistema: docker compose up --build
 # Requiere un .env en la raíz (ver .env.example) con SERVICEBUS_CONNECTION_STRING, SA_PASSWORD y AUDITLOG_PASSWORD.
+# Después de levantarlo: https://localhost:7056 (sitio) y https://authorization.localtest.me:7000 (login). El navegador
+# avisa por el certificado autofirmado: hay que aceptarlo una vez en cada URL. Usuario de prueba: test@bombo.com / Test1234!
 name: tp-reservas
 
+# Login (OIDC): el Authorization Server exige HTTPS y los clientes lo validan contra el mismo issuer.
+# Para que la URL sea idéntica desde el navegador y desde los contenedores se usa authorization.localtest.me:
+#   - en el navegador resuelve a 127.0.0.1 (DNS público) y entra por el puerto publicado 7000;
+#   - dentro de la red del compose es un alias del contenedor authorization.
+# El servicio "certs" genera un certificado autofirmado (no se commitea ninguna clave privada) y los
+# contenedores que llaman a Authorization lo agregan a su lista de confianza con SSL_CERT_DIR.
+x-auth-issuer: &auth-issuer https://authorization.localtest.me:7000
+x-trust-certs: &trust-certs /etc/ssl/certs:/certs
+
 services:
+  certs:
+    image: alpine:3.20
+    command:
+      - sh
+      - -c
+      - |
+        [ -f /certs/dev.pfx ] && exit 0
+        apk add --no-cache openssl >/dev/null
+        openssl req -x509 -newkey rsa:2048 -nodes -days 365 -keyout /certs/dev.key -out /certs/dev.crt \
+          -subj "/CN=tp-reservas-dev" -addext "subjectAltName=DNS:authorization.localtest.me,DNS:localhost"
+        openssl pkcs12 -export -in /certs/dev.crt -inkey /certs/dev.key -out /certs/dev.pfx -passout pass:dev
+        chmod 644 /certs/*
+    volumes:
+      - certs:/certs
+
   auditlog:
     build:
       context: .
@@ -45,11 +71,20 @@ services:
     environment:
       ConnectionStrings__DbConexion: "Server=sqlserver;Database=PaymentDb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True"
       SERVICEBUS_CONNECTION_STRING: ${SERVICEBUS_CONNECTION_STRING:?definir SERVICEBUS_CONNECTION_STRING en .env}
+      # Valida de forma delegada el token de servicio de Booking contra el Authorization Server.
+      Auth__Authority: *auth-issuer
+      SSL_CERT_DIR: *trust-certs
+    volumes:
+      - certs:/certs:ro
     ports:
       - "5087:8080" # gRPC (HTTP/2 sin TLS)
     depends_on:
+      certs:
+        condition: service_completed_successfully
       sqlserver:
         condition: service_healthy
+      authorization:
+        condition: service_started
 
   booking:
     build:
@@ -62,12 +97,23 @@ services:
       # Dentro de la red del compose Payment se resuelve por nombre de servicio.
       Payment__GrpcUrl: http://payment:8080
       SERVICEBUS_CONNECTION_STRING: ${SERVICEBUS_CONNECTION_STRING:?definir SERVICEBUS_CONNECTION_STRING en .env}
+      # Valida el token del usuario y pide su token de servicio (client credentials) para llamar a Payment.
+      Auth__Authority: *auth-issuer
+      Auth__ClientId: booking-service
+      Auth__ClientSecret: ${BOOKING_SERVICE_SECRET:-dev-booking-service-secret}
+      SSL_CERT_DIR: *trust-certs
+    volumes:
+      - certs:/certs:ro
     ports:
       - "5295:8080"
     depends_on:
+      certs:
+        condition: service_completed_successfully
       sqlserver:
         condition: service_healthy
       payment:
+        condition: service_started
+      authorization:
         condition: service_started
 
   availability:
@@ -77,12 +123,82 @@ services:
         PROJECT: src/Availability/Availability.Web
         ASSEMBLY: Availability.Web
     environment:
+      # En Development aplica las migraciones y carga los datos de prueba al arrancar (en Production no lo hace).
+      ASPNETCORE_ENVIRONMENT: Development
+      # El login OIDC (form_post, cookies SameSite=None) necesita HTTPS: https://localhost:7056 como en local.
+      ASPNETCORE_URLS: https://+:7056
+      ASPNETCORE_HTTPS_PORT: "7056"
+      Kestrel__Certificates__Default__Path: /certs/dev.pfx
+      Kestrel__Certificates__Default__Password: dev
+      # Pisa el LocalDB de appsettings.json: dentro de la red del compose la base es la del contenedor sqlserver.
+      ConnectionStrings__DbConexion: "Server=sqlserver;Database=AvailabilityDb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True"
+      SERVICEBUS_CONNECTION_STRING: ${SERVICEBUS_CONNECTION_STRING:?definir SERVICEBUS_CONNECTION_STRING en .env}
+      Auth__Authority: *auth-issuer
+      Auth__ClientId: availability-web
+      Booking__BaseUrl: http://booking:8080/api/reservas/
+      SSL_CERT_DIR: *trust-certs
+    volumes:
+      - certs:/certs:ro
+    ports:
+      - "7056:7056"
+    depends_on:
+      certs:
+        condition: service_completed_successfully
+      sqlserver:
+        condition: service_healthy
+      booking:
+        condition: service_started
+      authorization:
+        condition: service_started
+
+  authorization:
+    build:
+      context: .
+      args:
+        PROJECT: src/Authorization/Authorization.Server
+        ASSEMBLY: Authorization.Server
+    environment:
+      # En Development crea la base (EnsureCreated) y usa certificados de firma de desarrollo.
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: https://+:7000
+      ASPNETCORE_HTTPS_PORT: "7000"
+      Kestrel__Certificates__Default__Path: /certs/dev.pfx
+      Kestrel__Certificates__Default__Password: dev
+      ConnectionStrings__DefaultConnection: "Server=sqlserver;Database=AuthorizationDb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True"
+      Authorization__Issuer: *auth-issuer
+      Authorization__ClientRedirectUri: https://localhost:7056/signin-oidc
+      Authorization__GoogleRedirectUri: https://authorization.localtest.me:7000/signin-google
+      # Si no se definen, el login con Google no funciona (queda el usuario de prueba test@bombo.com).
+      Authorization__GoogleClientId: ${GOOGLE_CLIENT_ID:-TU_CLIENT_ID}
+      Authorization__GoogleClientSecret: ${GOOGLE_CLIENT_SECRET:-TU_CLIENT_SECRET}
+      Authorization__BookingServiceClientSecret: ${BOOKING_SERVICE_SECRET:-dev-booking-service-secret}
+      SERVICEBUS_CONNECTION_STRING: ${SERVICEBUS_CONNECTION_STRING:?definir SERVICEBUS_CONNECTION_STRING en .env}
+    volumes:
+      - certs:/certs:ro
+    ports:
+      - "7000:7000"
+    networks:
+      default:
+        aliases:
+          - authorization.localtest.me
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      certs:
+        condition: service_completed_successfully
+
+  notifications:
+    build:
+      context: .
+      args:
+        PROJECT: src/Notifications/Notifications.Api
+        ASSEMBLY: Notifications.Api
+    environment:
       SERVICEBUS_CONNECTION_STRING: ${SERVICEBUS_CONNECTION_STRING:?definir SERVICEBUS_CONNECTION_STRING en .env}
     ports:
-      - "5269:8080"
-    depends_on:
-      - booking
+      - "5310:8080"
 
 volumes:
   auditlogdata:
   sqldata:
+  certs:
