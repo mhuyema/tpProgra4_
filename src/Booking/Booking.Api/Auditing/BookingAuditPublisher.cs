@@ -1,11 +1,12 @@
+using Booking.Business.Auditing;
 using Broker.Messaging.Abstractions;
 using Broker.Messaging.Contracts;
 using Microsoft.Extensions.Logging;
 
-namespace Payment.Business.Auditing;
+namespace Booking.Api.Auditing;
 
-public sealed class PaymentAuditPublisher(
-    IMessagePublisher publisher, ILogger<PaymentAuditPublisher> logger) : IPaymentAuditPublisher
+public sealed class BookingAuditPublisher(
+    IMessagePublisher publisher, ILogger<BookingAuditPublisher> logger) : IBookingAuditPublisher
 {
     public Task InitProcessAsync(string correlationId, string processName,
         Dictionary<string, object?>? details = null, CancellationToken cancellationToken = default)
@@ -58,7 +59,7 @@ public sealed class PaymentAuditPublisher(
         var auditLog = new AuditLogMessage(
             LogId: Guid.NewGuid(),
             DateUtc: DateTime.UtcNow,
-            Service: "Payment",
+            Service: "Booking",
             Action: action,
             Message: message,
             CorrelationId: correlationId,
@@ -70,7 +71,7 @@ public sealed class PaymentAuditPublisher(
         }
         catch (Exception exception)
         {
-            // La auditoría no debe impedir el pago ni reemplazar su error original.
+            // La auditoría no debe impedir el flujo de reservas ni reemplazar su error original.
             logger.LogError(exception,
                 "No se pudo publicar la auditoría {Action}. CorrelationId={CorrelationId}",
                 action, correlationId);

@@ -232,8 +232,6 @@ Es un solo proyecto (Notifications.Api) porque no tiene reglas de negocio: tradu
 
 Payment aprueba o rechaza el cobro al azar, así en la demo se ven los dos resultados sin cambiar ninguna configuración: **Confirmada** o **Rechazada** con motivo "pago fallido". Probando varias veces aparecen los dos.
 
-<!-- TODO: capturas -->
-
 ### Fallo: falta un componente
 
 1. Levantar todos los servicios menos Payment.Api.
@@ -242,8 +240,6 @@ Payment aprueba o rechaza el cobro al azar, así en la demo se ven los dos resul
 4. La retención dura 5 minutos. Cuando faltan 30 segundos para que venza, Booking rechaza la reserva con motivo **"pago no disponible"** y el asiento vuelve a estar libre.
 
 Mientras Payment está caído, el resto del sistema sigue funcionando: se pueden ver asientos y mandar otras solicitudes.
-
-<!-- TODO: capturas -->
 
 ### Logs de auditoría (3f)
 
@@ -315,6 +311,14 @@ Booking llama a Payment por gRPC en `http://localhost:5087`.
 1. Copiar `.env.example` a `.env` en la raíz y completar `SERVICEBUS_CONNECTION_STRING`, `SA_PASSWORD` y `AUDITLOG_PASSWORD`. El `.env` no se sube al repo.
 2. Desde la raíz, correr `docker compose up --build`.
 3. Entrar a https://localhost:7056 (el navegador avisa por el certificado autofirmado: aceptarlo una vez, también en https://authorization.localtest.me:7000).
+
+`authorization.localtest.me` es un dominio público que apunta a 127.0.0.1. Algunos routers no lo resuelven (el navegador muestra `DNS_PROBE_FINISHED_NXDOMAIN` al iniciar sesión). En ese caso, agregar esta línea al archivo hosts (`C:\Windows\System32\drivers\etc\hosts`, editándolo como administrador):
+
+```
+127.0.0.1 authorization.localtest.me
+```
+
+No levantar a la vez los servicios desde Visual Studio y con Docker: usan los mismos puertos y el segundo no arranca (`address already in use`).
 
 Puertos: Availability `7056` (HTTPS), Authorization Server `7000` (HTTPS), Booking `5295`, Payment `5087`, Notificaciones `5310`, servicio de auditoría `5305` y Mailpit `8025` (mails de las notificaciones).
 

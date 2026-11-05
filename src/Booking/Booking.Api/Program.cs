@@ -1,5 +1,6 @@
 using Booking.Api.Handlers;
 using Booking.Api.Workers;
+using Booking.Api.Auditing;
 using Booking.Business.Auditing;
 using Booking.Business.Services;
 using Booking.Data;
