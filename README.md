@@ -15,7 +15,7 @@ Trabajo práctico de Programación IV. Sistema de reserva de asientos para event
 | Martin Alberto Negro Ruffino | Payment |
 | Nicolás Salvador Ruiz Diaz | Authorization Server |
 | Manuel Wald Katz | Message Broker |
-| Alejandra Alcorta | Infraestructura e integración |
+| Alejandra Alcorta | Infraestructura e integración, y envío de mails del servicio de notificaciones (de prueba, con Mailpit) |
 
 ---
 
@@ -124,7 +124,7 @@ flowchart TB
     G --> T[Booking.Api<br/>ProveedorTokenServicio, token de servicio para Payment]
 ```
 
-Cada capa solo usa la de abajo: Api → Business → Data. Business define las interfaces de lo externo (`IPagoGateway`, `INotificadorReservas`, `IValidadorToken`) y Api las implementa, así Business no depende de gRPC, del broker ni del Authorization Server.
+Cada capa solo usa la de abajo: Api → Business → Data. Business define las interfaces de lo externo (`IPagoGateway`, `INotificadorReservas`, `IValidadorToken`, `IBookingAuditPublisher`) y Api las implementa, así Business no depende de gRPC, del broker ni del Authorization Server.
 
 ### Payment: N-Layer, dominio anémico
 
@@ -137,7 +137,7 @@ flowchart TB
     S --> D[Payment.Data<br/>EF Core]
 ```
 
-Cada capa solo usa la de abajo: Api → Business → Data. Payment.Contracts tiene el contrato gRPC y lo comparte con Booking, que lo usa para llamarlo. Antes de llegar al servicio, cada llamada pasa por un interceptor que exige el token de servicio de Booking (punto 3e).
+Cada capa solo usa la de abajo: Api → Business → Data. Payment.Contracts tiene el contrato gRPC y lo comparte con Booking, que lo usa para llamarlo. Antes de llegar al servicio, cada llamada pasa por un interceptor que exige el token de servicio de Booking (punto 3e). La auditoría sigue el mismo criterio: Business define `IPaymentAuditPublisher` y Api lo implementa publicando en el broker.
 
 El detalle de Payment está en su [README](src/Payment/README.md).
 
@@ -230,6 +230,8 @@ Es un solo proyecto (Notifications.Api) porque no tiene reglas de negocio: tradu
 5. En la página de estado, la reserva pasa a **Retenida** y, cuando Payment aprueba el cobro, a **Confirmada**.
 6. En la consola de Notifications.Api aparecen los dos avisos: reserva creada y reserva confirmada. También se ven en la página de estado de la reserva y, si está Mailpit, como mails en http://localhost:8025.
 
+> **Los mails no llegan a la casilla real del usuario.** Son de prueba: Mailpit los atrapa en la propia compu y no salen a internet. Para verlos hay que abrir http://localhost:8025, aunque se haya iniciado sesión con una cuenta de Google.
+
 Payment aprueba o rechaza el cobro al azar, así en la demo se ven los dos resultados sin cambiar ninguna configuración: **Confirmada** o **Rechazada** con motivo "pago fallido". Probando varias veces aparecen los dos.
 
 ### Fallo: falta un componente
@@ -243,7 +245,7 @@ Mientras Payment está caído, el resto del sistema sigue funcionando: se pueden
 
 ### Logs de auditoría (3f)
 
-Cada microservicio loguea el inicio y el fin de la cadena de sucesos con un ID de correlación. Ese ID viaja por HTTP, por el broker y por gRPC, así se puede seguir una misma reserva en todos los servicios.
+Cada microservicio loguea el inicio y el fin de la cadena de sucesos con un ID de correlación. Para la reserva, ese ID es el de la solicitud (`RequestId`): lo genera Availability, viaja en los mensajes del broker y lo usan Booking y Notificaciones en sus registros, así se puede seguir una misma reserva entre los servicios. Payment registra cada cobro con un ID propio; en su registro de fin incluye el id de la reserva (`BookingId`) y del intento de pago, que es como se une con lo que registró Booking.
 
 Ejemplo real de la consola de Notifications.Api para una reserva confirmada (el ID de correlación es el de la solicitud):
 
@@ -263,14 +265,16 @@ Los mismos registros quedan en el servicio de auditoría: filtrando por ese ID d
 
 | Integrante | Historial |
 |---|---|
-| Matias Huyema | [matiashuyema_prompts.md](matiashuyema_prompts.md) |
+| Matias Huyema | [matiashuyema_prompts.md](prompts/matiashuyema_prompts.md) |
 | Alex Palaversich | [Alex_Palaversich.md](prompts/Alex_Palaversich.md) |
 | Maximiliano Diaz | [maximiliano_diaz_historial_prompts.md](prompts/maximiliano_diaz_historial_prompts.md) |
 | Gianni Mozzi | [Gianni_Mozzi.md](prompts/Gianni_Mozzi.md) |
 | Martin Alberto Negro Ruffino | [Martin_NegroRuffino.md](prompts/Martin_NegroRuffino.md) |
-| Nicolás Salvador Ruiz Diaz | [nicolas_prompts.md](src/Authorization/Authorization.Server/nicolas_prompts.md) |
-| Manuel Wald Katz | |
-| Alejandra Alcorta | [prompts/Alejandra_Alcorta.md](prompts/Alejandra_Alcorta.md) |
+| Nicolás Salvador Ruiz Diaz | [nicolas_prompts.md](prompts/nicolas_prompts.md) |
+| Manuel Wald Katz | [manuel_wald.md](prompts/manuel_wald.md) |
+| Alejandra Alcorta | [Alejandra_Alcorta.md](prompts/Alejandra_Alcorta.md) |
+
+Todos los historiales están en la carpeta [prompts](prompts/).
 
 ---
 

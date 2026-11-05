@@ -108,3 +108,5 @@ Prompts seleccionados, en orden cronológico. Se corrigió la ortografía sin ca
 35. En el docker-compose, que Notifications valide el token contra el Authorization Server del compose y no contra uno de afuera.
 
 36. En N-Layer, Business no debería depender del broker: mové BookingAuditPublisher y PaymentAuditPublisher a la Api de cada uno (la interfaz queda en Business) y sacá la referencia a Broker.Messaging del csproj de Business.
+
+37. Revisá el README con lo último de main y agregá lo que falte. Los prompts que estén fuera de la carpeta prompts movelos ahí, así están todos juntos.
