@@ -147,8 +147,8 @@ services:
       # El login OIDC (form_post, cookies SameSite=None) necesita HTTPS: https://localhost:7056 como en local.
       ASPNETCORE_URLS: https://+:7056
       ASPNETCORE_HTTPS_PORT: "7056"
-      Kestrel__Certificates__Default__Path: /certs/dev.pfx
-      Kestrel__Certificates__Default__Password: dev
+      Kestrel_CertificatesDefault_Path: /certs/dev.pfx
+      Kestrel_CertificatesDefault_Password: dev
       # Pisa el LocalDB de appsettings.json: dentro de la red del compose la base es la del contenedor sqlserver.
       ConnectionStrings__DbConexion: "Server=sqlserver;Database=AvailabilityDb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True"
       SERVICEBUS_CONNECTION_STRING: ${SERVICEBUS_CONNECTION_STRING:?definir SERVICEBUS_CONNECTION_STRING en .env}
@@ -181,8 +181,8 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: https://+:7000
       ASPNETCORE_HTTPS_PORT: "7000"
-      Kestrel__Certificates__Default__Path: /certs/dev.pfx
-      Kestrel__Certificates__Default__Password: dev
+      Kestrel_CertificatesDefault_Path: /certs/dev.pfx
+      Kestrel_CertificatesDefault_Password: dev
       ConnectionStrings__DefaultConnection: "Server=sqlserver;Database=AuthorizationDb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True"
       Authorization__Issuer: *auth-issuer
       Authorization__ClientRedirectUri: https://localhost:7056/signin-oidc
