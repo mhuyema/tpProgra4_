@@ -100,3 +100,9 @@ Prompts seleccionados, en orden cronológico. Se corrigió la ortografía sin ca
 ### Etapa 7: Notificaciones por mail
 
 33. Terminemos lo de los mails: agregá Mailpit al docker-compose para que Notifications mande los mails ahí, y sumá al README cómo se envían y dónde se ven.
+
+### Etapa 8: Revisión final del README
+
+34. Revisá y actualizá el README con lo que falte.
+
+35. En el docker-compose, que Notifications valide el token contra el Authorization Server del compose y no contra uno de afuera.
