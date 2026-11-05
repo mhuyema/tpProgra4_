@@ -4,6 +4,7 @@ using Authorization.Server.Models;
 using Broker.Messaging.DependencyInjection;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using OpenIddict.Abstractions;
 using System.Security.Cryptography.X509Certificates;
@@ -57,6 +58,16 @@ builder.Services.AddAuthentication(options =>
     options.ClientSecret = serverOptions.GoogleClientSecret;
     options.CallbackPath = serverOptions.GoogleCallbackPath;
     options.SignInScheme = IdentityConstants.ExternalScheme;
+    // Si el usuario cancela en Google, vuelve al login (con su returnUrl) en vez de mostrar la excepción.
+    options.Events.OnAccessDenied = context =>
+    {
+        var redirectUri = context.Properties?.RedirectUri ?? string.Empty;
+        var query = redirectUri.Contains('?') ? redirectUri[redirectUri.IndexOf('?')..] : string.Empty;
+        var returnUrl = QueryHelpers.ParseQuery(query)["returnUrl"].FirstOrDefault() ?? "/";
+        context.Response.Redirect($"/auth/login?returnUrl={Uri.EscapeDataString(returnUrl)}");
+        context.HandleResponse();
+        return Task.CompletedTask;
+    };
 });
 builder.Services.ConfigureApplicationCookie(options =>
 {

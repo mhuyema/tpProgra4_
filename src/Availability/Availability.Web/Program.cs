@@ -55,6 +55,11 @@ builder.Services.AddTransient<TokenUsuarioHandler>();
 builder.Services.AddHttpClient<IConsultaReservas, BookingService>()
     .AddHttpMessageHandler<TokenUsuarioHandler>();
 
+// Lo mismo para Notificaciones: Notifications solo entrega los avisos a su dueño, asi que cada pedido tiene
+// que llevar el token del usuario logueado (Notifications lo valida contra el Authorization Server).
+builder.Services.AddHttpClient<IConsultaNotificaciones, NotificacionesService>()
+    .AddHttpMessageHandler<TokenUsuarioHandler>();
+
 builder.Services.AddBroker(builder.Configuration);
 builder.Services.AddBrokerPublisher();
 
@@ -64,6 +69,7 @@ builder.Services.AddScoped<ConsultarAsientosLibres>();
 builder.Services.AddScoped<ArmadorMapaAsientos>();
 builder.Services.AddScoped<SolicitarReserva>();
 builder.Services.AddScoped<ConsultarEstadoSolicitud>();
+builder.Services.AddScoped<ConsultarNotificaciones>();
 
 var app = builder.Build();
 

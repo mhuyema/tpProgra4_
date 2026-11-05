@@ -116,6 +116,42 @@ services:
       authorization:
         condition: service_started
 
+  # Servidor SMTP de prueba: atrapa los mails de Notifications (no salen a internet).
+  # Se ven en http://localhost:8025
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # página para ver los mails
+
+  # Servicio de notificaciones (punto 3.h): consume los avisos de Booking del broker y los muestra al usuario.
+  # No usa base de datos (el registro de avisos es en memoria), por eso no depende de sqlserver.
+  notifications:
+    build:
+      context: .
+      args:
+        PROJECT: src/Notifications/Notifications.Api
+        ASSEMBLY: Notifications.Api
+    environment:
+      SERVICEBUS_CONNECTION_STRING: ${SERVICEBUS_CONNECTION_STRING:?definir SERVICEBUS_CONNECTION_STRING en .env}
+      # Con Smtp__Host definido, Notifications manda mails reales (a Mailpit) en vez de simularlos.
+      Smtp__Host: mailpit
+      Smtp__Port: "1025"
+      # Valida el token del usuario en GET /api/notificaciones/{userId} contra el Authorization Server del compose.
+      Auth__Authority: *auth-issuer
+      SSL_CERT_DIR: *trust-certs
+    volumes:
+      - certs:/certs:ro
+    ports:
+      - "5310:8080"
+    depends_on:
+      certs:
+        condition: service_completed_successfully
+      authorization:
+        condition: service_started
+      mailpit:
+        condition: service_started
+
   availability:
     build:
       context: .
@@ -136,6 +172,8 @@ services:
       Auth__Authority: *auth-issuer
       Auth__ClientId: availability-web
       Booking__BaseUrl: http://booking:8080/api/reservas/
+      # Availability consulta los avisos del usuario a Notifications (se resuelve por nombre de servicio).
+      Notifications__BaseUrl: http://notifications:8080/api/notificaciones/
       SSL_CERT_DIR: *trust-certs
     volumes:
       - certs:/certs:ro
@@ -149,6 +187,8 @@ services:
       booking:
         condition: service_started
       authorization:
+        condition: service_started
+      notifications:
         condition: service_started
 
   authorization:
@@ -187,18 +227,8 @@ services:
       certs:
         condition: service_completed_successfully
 
-  notifications:
-    build:
-      context: .
-      args:
-        PROJECT: src/Notifications/Notifications.Api
-        ASSEMBLY: Notifications.Api
-    environment:
-      SERVICEBUS_CONNECTION_STRING: ${SERVICEBUS_CONNECTION_STRING:?definir SERVICEBUS_CONNECTION_STRING en .env}
-    ports:
-      - "5310:8080"
-
 volumes:
   auditlogdata:
   sqldata:
   certs:
+  

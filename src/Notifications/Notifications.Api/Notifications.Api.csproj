@@ -12,4 +12,8 @@
     <ProjectReference Include="..\..\Broker\Broker.Messaging\Broker.Messaging.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="MailKit" Version="4.18.2" />
+  </ItemGroup>
+
 </Project>

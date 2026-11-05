@@ -58,11 +58,11 @@ flowchart TB
     BK -- "CALL cobro (gRPC)" --> PY
     PY --> PYDB
     BK -- "PUBLISH reserva creada / confirmada" --> MB
-    PY -- "PUBLISH auditoría" --> MB
+    INT -- "PUBLISH auditoría" --> MB
     MB -. "SUBSCRIBE" .-> NT
     MB -. "SUBSCRIBE" .-> AL
     AL --> ALDB
-    NT -- "aviso" --> U
+    NT -- "aviso (pantalla y mail)" --> U
 
     AV -- "AUTHENTICATE" --> AS
     INT -- "AUTHENTICATE" --> AS
@@ -71,6 +71,8 @@ flowchart TB
     classDef ec fill:#fff3cd,stroke:#d39e00,color:#000
     class MB ec
 ```
+
+Todos los servicios (Availability, Booking, Payment, Notificaciones y Authorization Server) publican sus registros de auditoría en el broker. En el diagrama se dibuja una sola flecha para no recargarlo.
 
 **Consistencia eventual (3g):** el sistema se vuelve eventualmente consistente en el **Message Broker**. Cuando Availability publica la solicitud, responde "solicitud recibida" sin esperar el resultado. Durante ese lapso, Availability ya registró la solicitud pero Booking todavía no creó la reserva, y el estado real del asiento se conoce recién cuando una réplica de Booking procesa el mensaje. Lo mismo pasa con la notificación al usuario, que llega después de que Booking confirma la reserva, y con los registros de auditoría, que llegan al servicio de auditoría después de que ocurre cada suceso. Los asientos ocupados que muestra Availability también pueden estar un poco atrasados: los pide a Booking por GET, y Booking puede haber procesado una reserva nueva justo después. En términos del teorema CAP, el sistema es AP: prioriza la disponibilidad y la tolerancia al particionado, y la consistencia es eventual.
 
@@ -88,7 +90,7 @@ flowchart TB
 | SQL Database (una por servicio) | Persistencia | Availability, Booking y Payment tienen cada uno su base. Así ningún servicio depende del esquema de otro y pueden evolucionar por separado (database per service). |
 | Authorization Server | Autenticación y tokens | Emite los tokens que necesita el usuario para reservar. También autentica a los microservicios entre sí, así cada API solo acepta llamadas de clientes autorizados. |
 | 3rd party Identity providers | Login externo | Permiten entrar con cuentas que el usuario ya tiene (Google, Microsoft, etc.). El Authorization Server delega el login en ellos y después emite sus propios tokens. |
-| Servicio de notificaciones (agregado, 3h) | Avisos al usuario | Escucha el broker y le avisa al usuario cuando la reserva se creó y cuando quedó confirmada después del pago. También expone un GET para consultar los avisos enviados a un usuario. Si falla, la reserva sigue funcionando igual. |
+| Servicio de notificaciones (agregado, 3h) | Avisos al usuario | Escucha el broker y le avisa al usuario cuando la reserva se creó y cuando quedó confirmada después del pago. Los avisos se ven en la página de estado de la reserva y también llegan por mail. Expone un GET para consultar los avisos de un usuario, que solo los entrega a su dueño (valida el token contra el Authorization Server). Si falla, la reserva sigue funcionando igual. |
 | Servicio de auditoría (agregado) | Registro centralizado de sucesos | Recibe por el broker los registros de auditoría de los microservicios y los guarda en una base NoSQL, con el ID de correlación de cada reserva. Así se puede seguir una reserva de punta a punta en un solo lugar (punto 3f). Expone un GET administrativo para consultarlos. Si falla, los registros esperan en el broker y la reserva no se frena. |
 
 ---
@@ -117,21 +119,25 @@ flowchart TB
     G[Booking.Api<br/>PagoGrpcGateway, cliente gRPC de Payment] -. implementa .-> I
     S --> N[INotificadorReservas<br/>interfaz en Booking.Business]
     NB[Booking.Api<br/>NotificadorBroker, publica en el broker] -. implementa .-> N
+    S --> V[IValidadorToken<br/>interfaz en Booking.Business]
+    VH[Booking.Api<br/>ValidadorTokenHttp, valida el token del usuario] -. implementa .-> V
+    G --> T[Booking.Api<br/>ProveedorTokenServicio, token de servicio para Payment]
 ```
 
-Cada capa solo usa la de abajo: Api → Business → Data. Business define las interfaces de lo externo (`IPagoGateway`, `INotificadorReservas`) y Api las implementa, así Business no depende de gRPC ni del broker.
+Cada capa solo usa la de abajo: Api → Business → Data. Business define las interfaces de lo externo (`IPagoGateway`, `INotificadorReservas`, `IValidadorToken`) y Api las implementa, así Business no depende de gRPC, del broker ni del Authorization Server.
 
 ### Payment: N-Layer, dominio anémico
 
 ```mermaid
 flowchart TB
+    X[Payment.Api<br/>AutenticacionServicioInterceptor, valida el token de Booking] --> G
     G[Payment.Api<br/>servicio gRPC] --> S[Payment.Business<br/>services]
     G --> C[Payment.Contracts<br/>PayRequest, PayResponse e interfaz gRPC]
     BK[Booking.Api] -. usa el contrato .-> C
     S --> D[Payment.Data<br/>EF Core]
 ```
 
-Cada capa solo usa la de abajo: Api → Business → Data. Payment.Contracts tiene el contrato gRPC y lo comparte con Booking, que lo usa para llamarlo.
+Cada capa solo usa la de abajo: Api → Business → Data. Payment.Contracts tiene el contrato gRPC y lo comparte con Booking, que lo usa para llamarlo. Antes de llegar al servicio, cada llamada pasa por un interceptor que exige el token de servicio de Booking (punto 3e).
 
 El detalle de Payment está en su [README](src/Payment/README.md).
 
@@ -150,7 +156,27 @@ Es un solo proyecto porque no tiene reglas de negocio propias: el protocolo (OAu
 
 El detalle de Authorization Server está en su [README](src/Authorization/Authorization.Server/README.md).
 
-<!-- TODO Nicolás: flujo entre servicios (client credentials, punto 3e) -->
+#### Autenticación entre servicios (3e)
+
+Todos los servicios validan los tokens contra el mismo endpoint del Authorization Server, `GET /api/auth/validate`, que responde `200 { valid, subject, email }` si el token es válido y `401` si no. Ningún servicio valida tokens por su cuenta.
+
+| Llamada | Token | Qué se valida |
+|---|---|---|
+| Availability → Booking (por el broker) | Del usuario, viaja en el mensaje | Que sea válido y que su `subject` sea el usuario de la solicitud (ver abajo). |
+| Booking → Payment (gRPC) | De servicio, con client credentials | Booking lo pide a `/connect/token` con el cliente `booking-service` y lo reutiliza hasta poco antes de que venza. Payment lo valida en un interceptor y exige que sea de `booking-service`: sin token o vencido responde `Unauthenticated` (Booking pide uno nuevo y reintenta una vez) y de otro cliente, `PermissionDenied`. |
+| Availability → Notificaciones (HTTP) | Del usuario, en `Authorization: Bearer` | Que sea válido (si no, `401`) y que el usuario pida sus propios avisos (si no, `403`). |
+
+Si el Authorization Server no responde, ningún servicio toma el token como inválido: Booking deja que el broker reentregue el mensaje, Payment responde `Unavailable` y Notificaciones, `503`.
+
+#### Validación de identidad en la reserva (validación delegada)
+
+1. El usuario inicia sesión en Availability.Web (OIDC contra el Authorization Server). El access token queda guardado en la sesión (`SaveTokens`).
+2. Al confirmar una reserva, Availability.Web toma ese token y lo envía en el campo `AccessToken` de `ReservationRequestedMessage` (contrato en `Broker.Messaging`). No se guarda en la base de Availability.
+3. Booking, antes de procesar el mensaje, llama a `GET {Auth:Authority}/api/auth/validate` con `Authorization: Bearer <token>`.
+4. Booking exige que `subject` sea igual al `UserId` del mensaje. Si el token falta, es inválido, venció (dura 15 minutos) o es de otro usuario, la solicitud queda `Rechazada` con motivo `TokenInvalido` (visible en la pantalla de estado) y el mensaje no se reintenta.
+5. Si el Authorization Server no responde, Booking no rechaza: deja que el broker reentregue el mensaje.
+
+El token es un secreto: no se loguea. Mensajes sin `AccessToken` (versiones anteriores) se rechazan igual.
 
 ### Servicio de auditoría: un solo proyecto, dominio anémico
 
@@ -169,16 +195,6 @@ Es un solo proyecto porque no tiene reglas de negocio: guarda cada `AuditLogMess
 
 El detalle del servicio de auditoría está en su [README](src/AuditLog/README.md).
 
-#### Validación de identidad en la reserva (validación delegada)
-
-1. El usuario inicia sesión en Availability.Web (OIDC contra el Authorization Server). El access token queda guardado en la sesión (`SaveTokens`).
-2. Al confirmar una reserva, Availability.Web toma ese token y lo envía en el campo `AccessToken` de `ReservationRequestedMessage` (contrato en `Broker.Messaging`). No se guarda en la base de Availability.
-3. Booking, antes de procesar el mensaje, llama a `GET {Auth:Authority}/api/auth/validate` con `Authorization: Bearer <token>`. Respuesta `200 { valid, subject, email }` si es válido, `401` si no.
-4. Booking exige que `subject` sea igual al `UserId` del mensaje. Si el token falta, es inválido, venció (dura 15 minutos) o es de otro usuario, la solicitud queda `Rechazada` con motivo `TokenInvalido` (visible en la pantalla de estado) y el mensaje no se reintenta.
-5. Si el Authorization Server no responde, Booking no rechaza: deja que el broker reentregue el mensaje.
-
-El token es un secreto: no se loguea. Mensajes sin `AccessToken` (versiones anteriores) se rechazan igual.
-
 ### Servicio de notificaciones: un solo proyecto, dominio anémico
 
 ```mermaid
@@ -186,7 +202,7 @@ flowchart TB
     Q[Notifications.Api<br/>suscriptores del broker] --> H[Handlers<br/>reserva creada / reserva confirmada]
     E["Notifications.Api<br/>GET /api/notificaciones/{userId}"] --> St
     H --> St[INotificationStore<br/>registro en memoria]
-    H --> Se[INotificationSender<br/>envío simulado en el log]
+    H --> Se[INotificationSender<br/>mail por SMTP o envío simulado en el log]
 ```
 
 Es un solo proyecto (Notifications.Api) porque no tiene reglas de negocio: traduce cada aviso de Booking en una notificación al usuario.
@@ -198,7 +214,8 @@ Es un solo proyecto (Notifications.Api) porque no tiene reglas de negocio: tradu
 
 - Una suscripción por tipo de aviso: el suscriptor de la librería del broker descarta los mensajes que no son de su tipo, así que si compartieran suscripción cada uno se perdería los del otro.
 - Si el broker entrega dos veces el mismo aviso, el usuario recibe uno solo: se registra por solicitud y tipo de aviso. El registro es en memoria y se pierde al reiniciar el servicio.
-- El envío es simulado con un log de auditoría. Para usar un canal real (por ejemplo, email) alcanza con otra implementación de `INotificationSender`, sin tocar los handlers.
+- El envío depende de la configuración: si hay un servidor SMTP (`Smtp:Host`), `EmailNotificationSender` manda un mail con MailKit; si no, `SimulatedNotificationSender` lo deja en el log de auditoría. Los handlers no cambian, solo la implementación de `INotificationSender` que se registra en `Program.cs`.
+- En desarrollo el SMTP es [Mailpit](https://mailpit.axllent.org/): atrapa los mails sin mandarlos a internet y los muestra en http://localhost:8025. Los mails van a una casilla de demo (`demo@grupo9.local`), porque los mensajes del broker traen el id del usuario y no su mail.
 
 ---
 
@@ -211,7 +228,7 @@ Es un solo proyecto (Notifications.Api) porque no tiene reglas de negocio: tradu
 3. Elegir un evento y un asiento libre. Para reservar, el sitio pide iniciar sesión.
 4. Confirmar la reserva. Availability responde enseguida que la solicitud fue recibida, sin esperar el resultado.
 5. En la página de estado, la reserva pasa a **Retenida** y, cuando Payment aprueba el cobro, a **Confirmada**.
-6. En la consola de Notifications.Api aparecen los dos avisos: reserva creada y reserva confirmada. También se pueden ver en `http://localhost:5310/api/notificaciones/{userId}`.
+6. En la consola de Notifications.Api aparecen los dos avisos: reserva creada y reserva confirmada. También se ven en la página de estado de la reserva y, si está Mailpit, como mails en http://localhost:8025.
 
 Payment aprueba o rechaza el cobro al azar, así en la demo se ven los dos resultados sin cambiar ninguna configuración: **Confirmada** o **Rechazada** con motivo "pago fallido". Probando varias veces aparecen los dos.
 
@@ -230,8 +247,19 @@ Mientras Payment está caído, el resto del sistema sigue funcionando: se pueden
 
 ### Logs de auditoría (3f)
 
-<!-- TODO: ejemplo de log real -->
 Cada microservicio loguea el inicio y el fin de la cadena de sucesos con un ID de correlación. Ese ID viaja por HTTP, por el broker y por gRPC, así se puede seguir una misma reserva en todos los servicios.
+
+Ejemplo real de la consola de Notifications.Api para una reserva confirmada (el ID de correlación es el de la solicitud):
+
+```
+[AUDITORIA] RECIBIDO correlationId=ab1dbfb8-6159-4838-a155-9094b2037368 intento=1
+[AUDITORIA] INICIO cadena correlationId=ab1dbfb8-6159-4838-a155-9094b2037368 publicando AuditLogMessage
+[AUDITORIA] PUBLICADO correlationId=ab1dbfb8-6159-4838-a155-9094b2037368 AuditLogMessage en el broker
+[AUDITORIA] NOTIFICACION enviada. correlationId=ab1dbfb8-6159-4838-a155-9094b2037368 tipo=ReservaConfirmada mensaje="Tu reserva del asiento 422 del evento 4 fue confirmada. Pago recibido: 35000,00."
+[AUDITORIA] FIN correlationId=ab1dbfb8-6159-4838-a155-9094b2037368 procesado OK
+```
+
+Los mismos registros quedan en el servicio de auditoría: filtrando por ese ID de correlación en la consola de AuditLogs se ve la reserva en todos los servicios.
 
 ---
 
@@ -241,9 +269,9 @@ Cada microservicio loguea el inicio y el fin de la cadena de sucesos con un ID d
 |---|---|
 | Matias Huyema | [matiashuyema_prompts.md](matiashuyema_prompts.md) |
 | Alex Palaversich | |
-| Maximiliano Diaz | |
-| Gianni Mozzi | |
-| Martin Alberto Negro Ruffino | |
+| Maximiliano Diaz | [maximiliano_diaz_historial_prompts.md](prompts/maximiliano_diaz_historial_prompts.md) |
+| Gianni Mozzi | [Gianni_Mozzi.md](prompts/Gianni_Mozzi.md) |
+| Martin Alberto Negro Ruffino | [Martin_NegroRuffino.md](prompts/Martin_NegroRuffino.md) |
 | Nicolás Salvador Ruiz Diaz | [nicolas_prompts.md](src/Authorization/Authorization.Server/nicolas_prompts.md) |
 | Manuel Wald Katz | |
 | Alejandra Alcorta | [prompts/Alejandra_Alcorta.md](prompts/Alejandra_Alcorta.md) |
@@ -258,13 +286,14 @@ Hay dos formas: con Visual Studio o con Docker.
 
 **Requisitos:** Visual Studio 2026 (usamos la edición Community) con la carga de trabajo "Desarrollo de ASP.NET y web", que incluye el SDK de .NET 10 y SQL Server LocalDB.
 
-1. Cargar la connection string del Service Bus en Availability.Web, Booking.Api y Notifications.Api:
+1. Cargar la connection string del Service Bus en los User Secrets de Availability.Web, Booking.Api, Payment.Api, Notifications.Api, Authorization.Server y AuditLog.Api (en Visual Studio: clic derecho en el proyecto → "Administrar secretos de usuario"):
    `dotnet user-secrets set "Broker:ConnectionString" "<connection string>"`
 
-   AuditLog.Api no tiene User Secrets: la connection string se le pasa con la variable de entorno `SERVICEBUS_CONNECTION_STRING`. Authorization.Server necesita además las credenciales de Google, que se cargan como se explica en su [README](src/Authorization/Authorization.Server/README.md).
-2. Tener SQL Server LocalDB, que viene con Visual Studio. Las bases (Availability, BookingDb, PaymentDb y AuthorizationDb) se crean solas al arrancar cada servicio.
+   La connection string empieza con `Endpoint=sb://` y termina con `EntityPath=grupo9`. AuditLog.Api necesita además la contraseña de su consola: `dotnet user-secrets set "AuditLog:Password" "<contraseña>"`. Authorization.Server necesita las credenciales de Google, que se cargan como se explica en su [README](src/Authorization/Authorization.Server/README.md).
+2. Tener SQL Server LocalDB, que viene con Visual Studio. Las bases (Availability, BookingDb, PaymentDb y AuthorizationDb) se crean solas al arrancar cada servicio. El servicio de auditoría usa LiteDB, un archivo local que tampoco hay que crear.
 3. Levantar los servicios. En Visual Studio: clic derecho en la solución → "Configurar proyectos de inicio" → "Varios proyectos de inicio", y marcar Authorization.Server, Payment.Api, Booking.Api, Notifications.Api, AuditLog.Api y Availability.Web con la acción "Iniciar", en ese orden. Authorization Server (`https://localhost:7000`) debe estar levantado antes que los demás: Availability.Web inicia sesión contra él y Booking le valida el token de cada reserva.
 4. Entrar a https://localhost:7056
+5. Opcional, para ver los avisos como mails: levantar Mailpit con `docker run -d --name mailpit -p 1025:1025 -p 8025:8025 axllent/mailpit` y cargar en Notifications.Api `dotnet user-secrets set "Smtp:Host" "localhost"`. Los mails se ven en http://localhost:8025. Sin `Smtp:Host` el envío queda simulado en el log.
 
 Puertos de cada servicio:
 
@@ -285,9 +314,9 @@ Booking llama a Payment por gRPC en `http://localhost:5087`.
 
 1. Copiar `.env.example` a `.env` en la raíz y completar `SERVICEBUS_CONNECTION_STRING`, `SA_PASSWORD` y `AUDITLOG_PASSWORD`. El `.env` no se sube al repo.
 2. Desde la raíz, correr `docker compose up --build`.
-3. Entrar a http://localhost:5269
+3. Entrar a https://localhost:7056 (el navegador avisa por el certificado autofirmado: aceptarlo una vez, también en https://authorization.localtest.me:7000).
 
-Puertos (solo HTTP): Availability `5269`, Booking `5295`, Payment `5087` y servicio de auditoría `5305`.
+Puertos: Availability `7056` (HTTPS), Authorization Server `7000` (HTTPS), Booking `5295`, Payment `5087`, Notificaciones `5310`, servicio de auditoría `5305` y Mailpit `8025` (mails de las notificaciones).
 
 ### Consola de AuditLogs
 
@@ -300,5 +329,3 @@ Al pulsar un encabezado se alterna el orden ascendente/descendente en el servido
 El login de ejemplo usa una contraseña compartida y una cookie HttpOnly de cuatro horas. `/logs` requiere sesión y devuelve 401 si no está autenticado. Para consumirlo desde otro cliente, hacer primero `POST /session` con JSON `{"password":"..."}` y conservar la cookie. `GET /session` consulta la sesión y `DELETE /session` la cierra. Sin contraseña configurada, el login devuelve 503.
 
 Para ejecutar AuditLog fuera de Docker, definir `AuditLog__Password` en el entorno, además de la conexión al broker, y correr `dotnet run --project src/AuditLog/AuditLog.Api`.
-
-<!-- TODO: en el compose Availability todavía no tiene base (sigue apuntando a LocalDB) -->
