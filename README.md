@@ -268,7 +268,7 @@ Los mismos registros quedan en el servicio de auditoría: filtrando por ese ID d
 | Integrante | Historial |
 |---|---|
 | Matias Huyema | [matiashuyema_prompts.md](matiashuyema_prompts.md) |
-| Alex Palaversich | |
+| Alex Palaversich | [Alex_Palaversich.md](prompts/Alex_Palaversich.md) |
 | Maximiliano Diaz | [maximiliano_diaz_historial_prompts.md](prompts/maximiliano_diaz_historial_prompts.md) |
 | Gianni Mozzi | [Gianni_Mozzi.md](prompts/Gianni_Mozzi.md) |
 | Martin Alberto Negro Ruffino | [Martin_NegroRuffino.md](prompts/Martin_NegroRuffino.md) |
