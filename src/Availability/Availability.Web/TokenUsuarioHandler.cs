@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using Availability.Infrastructure.Servicios;
 using Microsoft.AspNetCore.Authentication;
 
 namespace Availability.Web;
@@ -11,6 +12,12 @@ public class TokenUsuarioHandler(IHttpContextAccessor httpContextAccessor) : Del
 {
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
+        // Los pedidos etiquetados como "de servicio" (asientos ocupados, pantalla pública) llevan el token de
+        // SERVICIO que agrega TokenServicioHandler. Acá no se les pone el del usuario, aunque haya sesión iniciada:
+        // Booking rechazaría ese endpoint con un token de usuario (403).
+        if (request.Options.TryGetValue(OpcionesDePeticion.UsarTokenDeServicio, out var deServicio) && deServicio)
+            return await base.SendAsync(request, cancellationToken);
+
         var httpContext = httpContextAccessor.HttpContext;
         if (httpContext is not null)
         {

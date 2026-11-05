@@ -25,7 +25,7 @@ namespace Availability.Infrastructure.Data
 
             var conexionBroker = config[BrokerOptions.ConnectionStringEnvVar];
 
-            if (string.IsNullOrWhiteSpace(conexionBroker)) 
+            if (string.IsNullOrWhiteSpace(conexionBroker))
             {
                 services.AddScoped<IPublicadorSolicitudes, Publicador>();
                 services.AddScoped<IAuditoriaPublicador, AuditoriaPublicadorNulo>();
@@ -42,10 +42,26 @@ namespace Availability.Infrastructure.Data
 
             services.AddScoped<IAsientoRepositorio, AsientoRepositorio>();
             services.AddScoped<ISolicitudReservaRepositorio, SolicitudReservaRepositorio>();
+
+            // Autenticación servicio a servicio (punto 3.e): para los pedidos sin usuario, Availability le pide un
+            // token al Authorization Server con su propio client_id/client_secret y se lo manda a Booking.
+            //  - "AuthorizationServer": HttpClient que apunta al Authorization Server (para pedir el token).
+            //  - ProveedorTokenServicio: singleton, guarda el token hasta que está por vencer.
+            //  - TokenServicioHandler: transient (los handlers de HttpClient deben serlo), agrega el token al pedido.
+            services.AddHttpClient(ProveedorTokenServicio.NombreCliente, client =>
+            {
+                var authority = config["Auth:Authority"] ?? "https://localhost:7000";
+                client.BaseAddress = new Uri(authority.TrimEnd('/') + "/");
+                client.Timeout = TimeSpan.FromSeconds(10);
+            });
+            services.AddSingleton<IProveedorTokenServicio, ProveedorTokenServicio>();
+            services.AddTransient<TokenServicioHandler>();
+
             services.AddHttpClient<IConsultaReservas, BookingService>(client =>
             {
                 client.BaseAddress = new Uri(config["Booking:BaseUrl"] ?? "http://localhost:5295/api/reservas/");
-            });
+            })
+            .AddHttpMessageHandler<TokenServicioHandler>();
 
             // Cliente HTTP del servicio de Notificaciones (puerto 5310 en local). Mismo patrón que Booking:
             // acá se fija la URL base; Availability.Web le suma el Bearer del usuario. La URL tiene que

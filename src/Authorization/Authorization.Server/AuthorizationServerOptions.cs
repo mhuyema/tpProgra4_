@@ -30,6 +30,10 @@ public sealed class AuthorizationServerOptions
     /// <summary>Secret del cliente "booking-service" (client credentials). Si está vacío, no se registra el cliente.</summary>
     public string? BookingServiceClientSecret { get; set; }
 
+    // <summary> Secret del cliente "availability-service" (cliente credentials): con el Availability pide un token de servicio
+    // para llamar a booking cuando no hay un usuario logueado. Si está vacío, no se registra el cliente.</summary>
+    public string? AvailabilityServiceClientSecret { get; set; }
+
     public string? SigningCertificatePath { get; set; }
     public string? SigningCertificatePassword { get; set; }
     public string? EncryptionCertificatePath { get; set; }
