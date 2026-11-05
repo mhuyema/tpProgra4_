@@ -70,6 +70,25 @@ services:
       payment:
         condition: service_started
 
+  # Servicio de notificaciones (punto 3.h): consume los avisos de Booking del broker y los muestra al usuario.
+  # No usa base de datos (el registro de avisos es en memoria), por eso no depende de sqlserver.
+  notifications:
+    build:
+      context: .
+      args:
+        PROJECT: src/Notifications/Notifications.Api
+        ASSEMBLY: Notifications.Api
+    environment:
+      SERVICEBUS_CONNECTION_STRING: ${SERVICEBUS_CONNECTION_STRING:?definir SERVICEBUS_CONNECTION_STRING en .env}
+      # URL del Authorization Server, con el que se valida el token en GET /api/notificaciones/{userId}.
+      # El Authorization Server corre fuera del compose (en la máquina del host), por eso se llega a él con
+      # host.docker.internal. Si lo levantaste con otra URL, definí AUTH_AUTHORITY en el .env.
+      Auth__Authority: ${AUTH_AUTHORITY:-http://host.docker.internal:7001}
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # hace que host.docker.internal también funcione en Linux
+    ports:
+      - "5310:8080"
+
   availability:
     build:
       context: .
@@ -78,10 +97,13 @@ services:
         ASSEMBLY: Availability.Web
     environment:
       SERVICEBUS_CONNECTION_STRING: ${SERVICEBUS_CONNECTION_STRING:?definir SERVICEBUS_CONNECTION_STRING en .env}
+      # Availability consulta los avisos del usuario a Notifications (se resuelve por nombre de servicio).
+      Notifications__BaseUrl: http://notifications:8080/api/notificaciones/
     ports:
       - "5269:8080"
     depends_on:
       - booking
+      - notifications
 
 volumes:
   auditlogdata:
