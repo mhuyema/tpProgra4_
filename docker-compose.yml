@@ -116,25 +116,6 @@ services:
       authorization:
         condition: service_started
 
-  # Servicio de notificaciones (punto 3.h): consume los avisos de Booking del broker y los muestra al usuario.
-  # No usa base de datos (el registro de avisos es en memoria), por eso no depende de sqlserver.
-  notifications:
-    build:
-      context: .
-      args:
-        PROJECT: src/Notifications/Notifications.Api
-        ASSEMBLY: Notifications.Api
-    environment:
-      SERVICEBUS_CONNECTION_STRING: ${SERVICEBUS_CONNECTION_STRING:?definir SERVICEBUS_CONNECTION_STRING en .env}
-      # URL del Authorization Server, con el que se valida el token en GET /api/notificaciones/{userId}.
-      # El Authorization Server corre fuera del compose (en la máquina del host), por eso se llega a él con
-      # host.docker.internal. Si lo levantaste con otra URL, definí AUTH_AUTHORITY en el .env.
-      Auth__Authority: ${AUTH_AUTHORITY:-http://host.docker.internal:7001}
-    extra_hosts:
-      - "host.docker.internal:host-gateway" # hace que host.docker.internal también funcione en Linux
-    ports:
-      - "5310:8080"
-
   availability:
     build:
       context: .
@@ -147,8 +128,8 @@ services:
       # El login OIDC (form_post, cookies SameSite=None) necesita HTTPS: https://localhost:7056 como en local.
       ASPNETCORE_URLS: https://+:7056
       ASPNETCORE_HTTPS_PORT: "7056"
-      Kestrel_CertificatesDefault_Path: /certs/dev.pfx
-      Kestrel_CertificatesDefault_Password: dev
+      Kestrel__Certificates__Default__Path: /certs/dev.pfx
+      Kestrel__Certificates__Default__Password: dev
       # Pisa el LocalDB de appsettings.json: dentro de la red del compose la base es la del contenedor sqlserver.
       ConnectionStrings__DbConexion: "Server=sqlserver;Database=AvailabilityDb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True"
       SERVICEBUS_CONNECTION_STRING: ${SERVICEBUS_CONNECTION_STRING:?definir SERVICEBUS_CONNECTION_STRING en .env}
@@ -181,8 +162,8 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: https://+:7000
       ASPNETCORE_HTTPS_PORT: "7000"
-      Kestrel_CertificatesDefault_Path: /certs/dev.pfx
-      Kestrel_CertificatesDefault_Password: dev
+      Kestrel__Certificates__Default__Path: /certs/dev.pfx
+      Kestrel__Certificates__Default__Password: dev
       ConnectionStrings__DefaultConnection: "Server=sqlserver;Database=AuthorizationDb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True"
       Authorization__Issuer: *auth-issuer
       Authorization__ClientRedirectUri: https://localhost:7056/signin-oidc
@@ -194,8 +175,6 @@ services:
       SERVICEBUS_CONNECTION_STRING: ${SERVICEBUS_CONNECTION_STRING:?definir SERVICEBUS_CONNECTION_STRING en .env}
     volumes:
       - certs:/certs:ro
-      # Availability consulta los avisos del usuario a Notifications (se resuelve por nombre de servicio).
-      Notifications__BaseUrl: http://notifications:8080/api/notificaciones/
     ports:
       - "7000:7000"
     networks:
@@ -218,8 +197,6 @@ services:
       SERVICEBUS_CONNECTION_STRING: ${SERVICEBUS_CONNECTION_STRING:?definir SERVICEBUS_CONNECTION_STRING en .env}
     ports:
       - "5310:8080"
-      - booking
-      - notifications
 
 volumes:
   auditlogdata:

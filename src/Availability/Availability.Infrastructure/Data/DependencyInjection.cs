@@ -47,14 +47,6 @@ namespace Availability.Infrastructure.Data
                 client.BaseAddress = new Uri(config["Booking:BaseUrl"] ?? "http://localhost:5295/api/reservas/");
             });
 
-            // Cliente HTTP del servicio de Notificaciones (puerto 5310 en local). Mismo patrón que Booking:
-            // acá se fija la URL base; Availability.Web le suma el Bearer del usuario. La URL tiene que
-            // terminar en "/" para que .NET le pegue bien el id del usuario al final.
-            services.AddHttpClient<IConsultaNotificaciones, NotificacionesService>(client =>
-            {
-                client.BaseAddress = new Uri(config["Notifications:BaseUrl"] ?? "http://localhost:5310/api/notificaciones/");
-            });
-
             return services;
         }
     }

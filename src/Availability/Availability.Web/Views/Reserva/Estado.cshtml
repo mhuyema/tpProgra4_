@@ -5,7 +5,7 @@
     ViewData["Title"] = "Estado de tu reserva";
     ViewData["FullWidth"] = true;
     var actualizar = new ButtonModel("Actualizar estado", Href: Context.Request.Path + Context.Request.QueryString, Variant: ButtonVariant.Primary);
-    var volver = new ButtonModel("Volver a la cartelera", Href: Url.Action("Index", "Home"), Variant: ButtonVariant.Secondary);
+    var volver =new ButtonModel("Volver a la cartelera", Href: Url.Action("Index", "Home"), Variant: ButtonVariant.Secondary);
 }
 
 <div class="bombo-container">
@@ -35,29 +35,6 @@
                     </li>
                 }
             </ul>
-
-            @* Avisos del servicio de Notificaciones (punto 3.h). Si todavía no hay, se explica por qué. *@
-            <div class="bombo-section__head" style="margin:1rem 0 .75rem">
-                <h3 class="bombo-headline-sm">Avisos</h3>
-                <span class="bombo-label-md">@(Model.Notificaciones?.Count ?? 0)</span>
-            </div>
-            @if (Model.Notificaciones is { Count: > 0 })
-            {
-                <ul class="bombo-reserva__list">
-                    @foreach (var n in Model.Notificaciones)
-                    {
-                        <li class="bombo-reserva__item">
-                            <span class="bombo-label-md">@n.EnviadaUtc.ToLocalTime().ToString("HH:mm")</span>
-                            <span class="bombo-body-sm">@n.Mensaje</span>
-                        </li>
-                    }
-                </ul>
-            }
-            else
-            {
-                <p class="bombo-body-sm">Todavía no hay avisos. Llegan unos segundos después de que se procesa tu reserva: tocá "Actualizar estado".</p>
-            }
-
             <partial name="Components/_Button" model="actualizar" />
             <partial name="Components/_Button" model="volver" />
         </section>
