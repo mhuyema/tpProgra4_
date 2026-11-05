@@ -85,11 +85,11 @@ Todos los servicios (Availability, Booking, Payment, Notificaciones y Authorizat
 | Public IP Addresses | Entrada desde Internet | Es por donde entran los usuarios. Solo Availability queda expuesto, el resto de los servicios es interno. |
 | Availability Site | Sitio público (front) y entrada de las reservas | Muestra los eventos y asientos disponibles sin pedir login. Recibe la solicitud de reserva, verifica que el asiento exista, la guarda con un id único y la publica en el broker. Para el seguimiento le consulta el resultado a Booking. |
 | Message Broker | Comunicación asíncrona entre servicios | Separa Availability de Booking. Availability puede responder enseguida y si Booking está caído o saturado los mensajes quedan en la cola. Las réplicas de Booking compiten por los mensajes. |
-| Booking REST API | Dueño de las reservas | Decide si el asiento está libre, crea la reserva retenida, le pide el cobro a Payment y confirma o rechaza según la respuesta. También vence las reservas retenidas que no tuvieron resultado. Corre en varias réplicas para aguantar muchas solicitudes al mismo tiempo. |
+| Booking REST API | Dueño de las reservas | Decide si el asiento está libre, crea la reserva retenida, le pide el cobro a Payment y confirma o rechaza según la respuesta. También vence las reservas retenidas que no tuvieron resultado. Está pensado para correr en varias réplicas: todas leen de la misma suscripción del broker y cada mensaje lo procesa una sola (consumidores competidores). En la demo corre una. |
 | Payment gRPC API | Cobro | Cobra las reservas retenidas. Usa gRPC porque es una llamada interna y sincrónica entre servicios, con contrato tipado y menos overhead que REST. |
-| SQL Database (una por servicio) | Persistencia | Availability, Booking y Payment tienen cada uno su base. Así ningún servicio depende del esquema de otro y pueden evolucionar por separado (database per service). |
+| SQL Database (una por servicio) | Persistencia | Availability, Booking y Payment tienen cada uno su base (el Authorization Server también tiene la suya, AuthorizationDb). Así ningún servicio depende del esquema de otro y pueden evolucionar por separado (database per service). |
 | Authorization Server | Autenticación y tokens | Emite los tokens que necesita el usuario para reservar. También autentica a los microservicios entre sí, así cada API solo acepta llamadas de clientes autorizados. |
-| 3rd party Identity providers | Login externo | Permiten entrar con cuentas que el usuario ya tiene (Google, Microsoft, etc.). El Authorization Server delega el login en ellos y después emite sus propios tokens. |
+| 3rd party Identity providers | Login externo | Permiten entrar con cuentas que el usuario ya tiene. En este TP está implementado Google. El Authorization Server delega el login en él y después emite sus propios tokens. |
 | Servicio de notificaciones (agregado, 3h) | Avisos al usuario | Escucha el broker y le avisa al usuario cuando la reserva se creó y cuando quedó confirmada después del pago. Los avisos se ven en la página de estado de la reserva y también llegan por mail. Expone un GET para consultar los avisos de un usuario, que solo los entrega a su dueño (valida el token contra el Authorization Server). Si falla, la reserva sigue funcionando igual. |
 | Servicio de auditoría (agregado) | Registro centralizado de sucesos | Recibe por el broker los registros de auditoría de los microservicios y los guarda en una base NoSQL, con el ID de correlación de cada reserva. Así se puede seguir una reserva de punta a punta en un solo lugar (punto 3f). Expone un GET administrativo para consultarlos. Si falla, los registros esperan en el broker y la reserva no se frena. |
 
@@ -225,18 +225,18 @@ Es un solo proyecto (Notifications.Api) porque no tiene reglas de negocio: tradu
 
 1. Levantar los servicios como se explica en [Cómo ejecutarlo](#cómo-ejecutarlo).
 2. Entrar a https://localhost:7056 sin iniciar sesión: se ven los eventos y sus asientos disponibles.
-3. Elegir un evento y un asiento libre. Para reservar, el sitio pide iniciar sesión.
+3. Elegir un evento y un asiento libre. Para reservar, el sitio pide iniciar sesión: se puede usar el usuario de prueba **test@bombo.com / Test1234!** (se crea solo al arrancar el Authorization Server) o una cuenta de Google.
 4. Confirmar la reserva. Availability responde enseguida que la solicitud fue recibida, sin esperar el resultado.
-5. En la página de estado, la reserva pasa a **Retenida** y, cuando Payment aprueba el cobro, a **Confirmada**.
-6. En la consola de Notifications.Api aparecen los dos avisos: reserva creada y reserva confirmada. También se ven en la página de estado de la reserva y, si está Mailpit, como mails en http://localhost:8025.
+5. En la página de estado, tocar "Actualizar estado": la reserva pasa a **Retenida** y, cuando Payment aprueba el cobro, a **Confirmada**. Si se consulta apenas confirmada puede figurar **Pendiente**: Booking todavía no procesó el mensaje (es la consistencia eventual del 3g).
+6. En la consola de Notifications.Api (con Docker: `docker compose logs notifications`) aparecen los dos avisos: reserva creada y reserva confirmada. También se ven en la página de estado de la reserva y, si está Mailpit, como mails en http://localhost:8025.
 
 > **Los mails no llegan a la casilla real del usuario.** Son de prueba: Mailpit los atrapa en la propia compu y no salen a internet. Para verlos hay que abrir http://localhost:8025, aunque se haya iniciado sesión con una cuenta de Google.
 
-Payment aprueba o rechaza el cobro al azar, así en la demo se ven los dos resultados sin cambiar ninguna configuración: **Confirmada** o **Rechazada** con motivo "pago fallido". Probando varias veces aparecen los dos.
+Payment aprueba o rechaza el cobro al azar (mitad y mitad), así en la demo se ven los dos resultados sin cambiar ninguna configuración: **Confirmada** o **Rechazada** con motivo "pago fallido". Probando varias veces aparecen los dos.
 
 ### Fallo: falta un componente
 
-1. Levantar todos los servicios menos Payment.Api.
+1. Levantar todos los servicios menos Payment.Api. Con Docker: levantar todo y después `docker compose stop payment` (al terminar, `docker compose start payment`). En Visual Studio: dejar Payment.Api en "Ninguno" en los proyectos de inicio.
 2. Reservar un asiento como en el happy path. Availability recibe la solicitud igual y la reserva queda **Retenida**.
 3. Booking no puede cobrar y reintenta cada 15 segundos.
 4. La retención dura 5 minutos. Cuando faltan 30 segundos para que venza, Booking rechaza la reserva con motivo **"pago no disponible"** y el asiento vuelve a estar libre.
