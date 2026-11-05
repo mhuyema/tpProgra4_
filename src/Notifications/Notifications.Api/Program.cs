@@ -29,7 +29,15 @@ builder.Services.AddScoped<INotificationAuditPublisher, NotificationAuditPublish
 // handlers se crean uno por mensaje y el registro de avisos tiene que sobrevivir entre mensajes.
 // Se reemplazan por una base de datos / un proveedor real de email o SMS sin tocar los handlers.
 builder.Services.AddSingleton<INotificationStore, InMemoryNotificationStore>();
-builder.Services.AddSingleton<INotificationSender, SimulatedNotificationSender>();
+
+// Si hay un servidor SMTP configurado (Smtp:Host) se mandan mails reales; si no, se sigue simulando en el log.
+// Asi el servicio arranca igual en una maquina sin SMTP.
+builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
+if (string.IsNullOrWhiteSpace(builder.Configuration["Smtp:Host"]))
+    builder.Services.AddSingleton<INotificationSender, SimulatedNotificationSender>();
+else
+    builder.Services.AddSingleton<INotificationSender, EmailNotificationSender>();
+
 
 // Autenticación del GET de consulta (punto 3.e): el token que manda el usuario se valida contra el
 // Authorization Server. AddMemoryCache es el caché en memoria que usa el validador para no repetir consultas.

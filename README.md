@@ -186,7 +186,7 @@ flowchart TB
     Q[Notifications.Api<br/>suscriptores del broker] --> H[Handlers<br/>reserva creada / reserva confirmada]
     E["Notifications.Api<br/>GET /api/notificaciones/{userId}"] --> St
     H --> St[INotificationStore<br/>registro en memoria]
-    H --> Se[INotificationSender<br/>envío simulado en el log]
+    H --> Se[INotificationSender<br/>mail por SMTP o envío simulado en el log]
 ```
 
 Es un solo proyecto (Notifications.Api) porque no tiene reglas de negocio: traduce cada aviso de Booking en una notificación al usuario.
@@ -198,7 +198,8 @@ Es un solo proyecto (Notifications.Api) porque no tiene reglas de negocio: tradu
 
 - Una suscripción por tipo de aviso: el suscriptor de la librería del broker descarta los mensajes que no son de su tipo, así que si compartieran suscripción cada uno se perdería los del otro.
 - Si el broker entrega dos veces el mismo aviso, el usuario recibe uno solo: se registra por solicitud y tipo de aviso. El registro es en memoria y se pierde al reiniciar el servicio.
-- El envío es simulado con un log de auditoría. Para usar un canal real (por ejemplo, email) alcanza con otra implementación de `INotificationSender`, sin tocar los handlers.
+- El envío depende de la configuración: si hay un servidor SMTP (`Smtp:Host`), `EmailNotificationSender` manda un mail con MailKit; si no, `SimulatedNotificationSender` lo deja en el log de auditoría. Los handlers no cambian, solo la implementación de `INotificationSender` que se registra en `Program.cs`.
+- En desarrollo el SMTP es [Mailpit](https://mailpit.axllent.org/): atrapa los mails sin mandarlos a internet y los muestra en http://localhost:8025. Los mails van a una casilla de demo (`demo@grupo9.local`), porque los mensajes del broker traen el id del usuario y no su mail.
 
 ---
 
@@ -211,7 +212,7 @@ Es un solo proyecto (Notifications.Api) porque no tiene reglas de negocio: tradu
 3. Elegir un evento y un asiento libre. Para reservar, el sitio pide iniciar sesión.
 4. Confirmar la reserva. Availability responde enseguida que la solicitud fue recibida, sin esperar el resultado.
 5. En la página de estado, la reserva pasa a **Retenida** y, cuando Payment aprueba el cobro, a **Confirmada**.
-6. En la consola de Notifications.Api aparecen los dos avisos: reserva creada y reserva confirmada. También se pueden ver en `http://localhost:5310/api/notificaciones/{userId}`.
+6. En la consola de Notifications.Api aparecen los dos avisos: reserva creada y reserva confirmada. También se ven en la página de estado de la reserva y, si está Mailpit, como mails en http://localhost:8025.
 
 Payment aprueba o rechaza el cobro al azar, así en la demo se ven los dos resultados sin cambiar ninguna configuración: **Confirmada** o **Rechazada** con motivo "pago fallido". Probando varias veces aparecen los dos.
 
@@ -258,13 +259,14 @@ Hay dos formas: con Visual Studio o con Docker.
 
 **Requisitos:** Visual Studio 2026 (usamos la edición Community) con la carga de trabajo "Desarrollo de ASP.NET y web", que incluye el SDK de .NET 10 y SQL Server LocalDB.
 
-1. Cargar la connection string del Service Bus en Availability.Web, Booking.Api y Notifications.Api:
+1. Cargar la connection string del Service Bus en Availability.Web, Booking.Api, Notifications.Api y Authorization.Server:
    `dotnet user-secrets set "Broker:ConnectionString" "<connection string>"`
 
    AuditLog.Api no tiene User Secrets: la connection string se le pasa con la variable de entorno `SERVICEBUS_CONNECTION_STRING`. Authorization.Server necesita además las credenciales de Google, que se cargan como se explica en su [README](src/Authorization/Authorization.Server/README.md).
 2. Tener SQL Server LocalDB, que viene con Visual Studio. Las bases (Availability, BookingDb, PaymentDb y AuthorizationDb) se crean solas al arrancar cada servicio.
 3. Levantar los servicios. En Visual Studio: clic derecho en la solución → "Configurar proyectos de inicio" → "Varios proyectos de inicio", y marcar Authorization.Server, Payment.Api, Booking.Api, Notifications.Api, AuditLog.Api y Availability.Web con la acción "Iniciar", en ese orden. Authorization Server (`https://localhost:7000`) debe estar levantado antes que los demás: Availability.Web inicia sesión contra él y Booking le valida el token de cada reserva.
 4. Entrar a https://localhost:7056
+5. Opcional, para ver los avisos como mails: levantar Mailpit con `docker run -d --name mailpit -p 1025:1025 -p 8025:8025 axllent/mailpit` y cargar en Notifications.Api `dotnet user-secrets set "Smtp:Host" "localhost"`. Los mails se ven en http://localhost:8025. Sin `Smtp:Host` el envío queda simulado en el log.
 
 Puertos de cada servicio:
 
@@ -285,9 +287,9 @@ Booking llama a Payment por gRPC en `http://localhost:5087`.
 
 1. Copiar `.env.example` a `.env` en la raíz y completar `SERVICEBUS_CONNECTION_STRING`, `SA_PASSWORD` y `AUDITLOG_PASSWORD`. El `.env` no se sube al repo.
 2. Desde la raíz, correr `docker compose up --build`.
-3. Entrar a http://localhost:5269
+3. Entrar a https://localhost:7056 (el navegador avisa por el certificado autofirmado: aceptarlo una vez, también en https://authorization.localtest.me:7000).
 
-Puertos (solo HTTP): Availability `5269`, Booking `5295`, Payment `5087` y servicio de auditoría `5305`.
+Puertos: Availability `7056` (HTTPS), Authorization Server `7000` (HTTPS), Booking `5295`, Payment `5087`, Notificaciones `5310`, servicio de auditoría `5305` y Mailpit `8025` (mails de las notificaciones).
 
 ### Consola de AuditLogs
 

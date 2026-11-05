@@ -116,6 +116,14 @@ services:
       authorization:
         condition: service_started
 
+  # Servidor SMTP de prueba: atrapa los mails de Notifications (no salen a internet).
+  # Se ven en http://localhost:8025
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # página para ver los mails
+
   # Servicio de notificaciones (punto 3.h): consume los avisos de Booking del broker y los muestra al usuario.
   # No usa base de datos (el registro de avisos es en memoria), por eso no depende de sqlserver.
   notifications:
@@ -126,6 +134,9 @@ services:
         ASSEMBLY: Notifications.Api
     environment:
       SERVICEBUS_CONNECTION_STRING: ${SERVICEBUS_CONNECTION_STRING:?definir SERVICEBUS_CONNECTION_STRING en .env}
+      # Con Smtp__Host definido, Notifications manda mails reales (a Mailpit) en vez de simularlos.
+      Smtp__Host: mailpit
+      Smtp__Port: "1025"
       # URL del Authorization Server, con el que se valida el token en GET /api/notificaciones/{userId}.
       # El Authorization Server corre fuera del compose (en la máquina del host), por eso se llega a él con
       # host.docker.internal. Si lo levantaste con otra URL, definí AUTH_AUTHORITY en el .env.
@@ -134,6 +145,9 @@ services:
       - "host.docker.internal:host-gateway" # hace que host.docker.internal también funcione en Linux
     ports:
       - "5310:8080"
+    depends_on:
+      mailpit:
+        condition: service_started
 
   availability:
     build:
