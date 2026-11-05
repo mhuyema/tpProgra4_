@@ -49,9 +49,12 @@ namespace Availability.Infrastructure.Servicios
         {
             try
             {
-                var response = await _httpClient.GetAsync(
-                    $"eventos/{eventoId}/asientos-ocupados"
-                );
+                // La pantalla de asientos es pública: puede verla alguien SIN sesión. Por eso este pedido no lleva
+                // el token de un usuario sino el de SERVICIO de Availability (client credentials), que agrega
+                // TokenServicioHandler al ver esta etiqueta. Booking solo acepta ese token para este endpoint (3.e).
+                using var request = new HttpRequestMessage(HttpMethod.Get, $"eventos/{eventoId}/asientos-ocupados");
+                request.Options.Set(OpcionesDePeticion.UsarTokenDeServicio, true);
+                var response = await _httpClient.SendAsync(request);
 
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                     return new AsientosOcupadosResponseDTO();

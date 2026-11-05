@@ -27,6 +27,7 @@
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="tests/AuditLog.Tests/AuditLog.Tests.csproj" />
+    <Project Path="tests/Booking.Tests/Booking.Tests.csproj" Id="8aabe13f-b258-4048-8e09-98ec4c76788c" />
     <Project Path="tests/Notifications.Tests/Notifications.Tests.csproj" Id="0426f2e3-c2bb-4722-9949-bd180a6a621b" />
     <Project Path="tests/Payment.Tests/Payment.Tests.csproj" />
   </Folder>

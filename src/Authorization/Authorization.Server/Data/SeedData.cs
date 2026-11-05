@@ -41,6 +41,7 @@ public static class SeedData
 
         await UpsertAsync(manager, descriptor);
         await SeedBookingServiceAsync(manager, options);
+        await SeedAvailabilityServiceAsync(manager, options);
     }
 
     // Cliente confidencial de Booking: pide un token de servicio (client credentials) para llamar a Payment.
@@ -53,6 +54,28 @@ public static class SeedData
             ClientId = "booking-service",
             ClientSecret = options.BookingServiceClientSecret,
             DisplayName = "Booking (servicio)",
+            ClientType = ClientTypes.Confidential,
+            Permissions =
+            {
+                Permissions.Endpoints.Token,
+                Permissions.GrantTypes.ClientCredentials
+            }
+        });
+    }
+
+    // Cliente confidencial de Availability: pide un token de servicio (client credentials) para llamar a Booking
+    // cuando la consulta NO la hace un usuario logueado (por ejemplo, la pantalla pública de asientos ocupados).
+    // Es el mismo patrón que "booking-service" -> Payment: el token trae sub = "availability-service" y Booking
+    // comprueba que el llamador sea ese cliente (punto 3.e del TP: los microservicios se autentican entre sí).
+    private static async Task SeedAvailabilityServiceAsync(IOpenIddictApplicationManager manager, AuthorizationServerOptions options)
+    {
+        if (string.IsNullOrWhiteSpace(options.AvailabilityServiceClientSecret)) return;
+
+        await UpsertAsync(manager, new OpenIddictApplicationDescriptor
+        {
+            ClientId = "availability-service",
+            ClientSecret = options.AvailabilityServiceClientSecret,
+            DisplayName = "Availability (servicio)",
             ClientType = ClientTypes.Confidential,
             Permissions =
             {
