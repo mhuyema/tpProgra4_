@@ -120,7 +120,7 @@ public class ReservaController(
             .Select(a => new NotificacionItem(a.Tipo, a.Mensaje, a.EnviadaUtc))
             .ToList();
 
-        return View(new EstadoSolicitudViewModel(evento.Id, evento.ToSummary(), items));
+        return View(new EstadoSolicitudViewModel(evento.Id, evento.ToSummary(), items, notificaciones));
     }
 
     private void GuardarPendiente(ReservaPendiente pendiente) =>
