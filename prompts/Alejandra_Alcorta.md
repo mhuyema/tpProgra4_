@@ -96,3 +96,7 @@ Prompts seleccionados, en orden cronológico. Se corrigió la ortografía sin ca
 31. Verificá si el docker compose up --build anduvo.
 
 32. En el estado de la reserva los avisos siempre muestran 0, ¿por qué?
+
+### Etapa 7: Notificaciones por mail
+
+33. Terminemos lo de los mails: agregá Mailpit al docker-compose para que Notifications mande los mails ahí, y sumá al README cómo se envían y dónde se ven.
