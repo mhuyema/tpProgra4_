@@ -16,7 +16,15 @@ builder.Services.AddBroker(builder.Configuration);
 // Estado en memoria y "canal" de envio. Son singleton porque los handlers se crean uno por mensaje.
 // Se reemplazan por una base de datos / un proveedor real de email o SMS sin tocar los handlers.
 builder.Services.AddSingleton<INotificationStore, InMemoryNotificationStore>();
-builder.Services.AddSingleton<INotificationSender, SimulatedNotificationSender>();
+
+// Si hay un servidor SMTP configurado (Smtp:Host) se mandan mails reales; si no, se sigue simulando en el log.
+// Asi el servicio arranca igual en una maquina sin SMTP.
+builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
+if (string.IsNullOrWhiteSpace(builder.Configuration["Smtp:Host"]))
+    builder.Services.AddSingleton<INotificationSender, SimulatedNotificationSender>();
+else
+    builder.Services.AddSingleton<INotificationSender, EmailNotificationSender>();
+
 
 // Un handler por tipo de aviso, y cada uno con su PROPIA suscripcion del topic.
 // Si los dos compartieran suscripcion, un mensaje de un tipo podria caer en el procesador del otro, que

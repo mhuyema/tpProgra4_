@@ -258,7 +258,7 @@ Hay dos formas: con Visual Studio o con Docker.
 
 **Requisitos:** Visual Studio 2026 (usamos la edición Community) con la carga de trabajo "Desarrollo de ASP.NET y web", que incluye el SDK de .NET 10 y SQL Server LocalDB.
 
-1. Cargar la connection string del Service Bus en Availability.Web, Booking.Api y Notifications.Api:
+1. Cargar la connection string del Service Bus en Availability.Web, Booking.Api, Notifications.Api y Authorization.Server:
    `dotnet user-secrets set "Broker:ConnectionString" "<connection string>"`
 
    AuditLog.Api no tiene User Secrets: la connection string se le pasa con la variable de entorno `SERVICEBUS_CONNECTION_STRING`. Authorization.Server necesita además las credenciales de Google, que se cargan como se explica en su [README](src/Authorization/Authorization.Server/README.md).
