@@ -102,7 +102,7 @@ Todos los servicios (Availability, Booking, Payment, Notificaciones y Authorizat
 ```mermaid
 flowchart TB
     Web[Availability.Web<br/>controllers / vistas] --> App[Availability.Application<br/>casos de uso + interfaces]
-    Infra[Availability.Infrastructure<br/>EF Core, Service Bus, cliente HTTP a Booking] --> App
+    Infra[Availability.Infrastructure<br/>EF Core, Service Bus, cliente HTTP a Booking<br/>y token de servicio para Booking] --> App
     App --> Dom[Availability.Domain<br/>entidades anémicas]
 ```
 
@@ -112,6 +112,7 @@ Las dependencias apuntan siempre hacia adentro: `Domain` no depende de nadie y `
 
 ```mermaid
 flowchart TB
+    F[Booking.Api<br/>AutenticacionRestFilter, valida el token en los GET] --> A
     A[Booking.Api<br/>controllers REST + consumidor del broker] --> S[Booking.Business<br/>services]
     W[Booking.Api<br/>workers: vencimiento de reservas y pagos pendientes] --> S
     S --> D[Booking.Data<br/>EF Core]
@@ -165,8 +166,12 @@ Todos los servicios validan los tokens contra el mismo endpoint del Authorizatio
 | Availability → Booking (por el broker) | Del usuario, viaja en el mensaje | Que sea válido y que su `subject` sea el usuario de la solicitud (ver abajo). |
 | Booking → Payment (gRPC) | De servicio, con client credentials | Booking lo pide a `/connect/token` con el cliente `booking-service` y lo reutiliza hasta poco antes de que venza. Payment lo valida en un interceptor y exige que sea de `booking-service`: sin token o vencido responde `Unauthenticated` (Booking pide uno nuevo y reintenta una vez) y de otro cliente, `PermissionDenied`. |
 | Availability → Notificaciones (HTTP) | Del usuario, en `Authorization: Bearer` | Que sea válido (si no, `401`) y que el usuario pida sus propios avisos (si no, `403`). |
+| Availability → Booking, estado de la solicitud (`GET solicitudes/{requestId}`) | Del usuario, en `Authorization: Bearer` | Que sea válido (si no, `401`) y que la reserva sea de ese usuario. Si es de otro, responde `404`, igual que si no existiera, para no revelar que ese id existe. |
+| Availability → Booking, asientos ocupados (`GET eventos/{eventoId}/asientos-ocupados`) | De servicio, con client credentials | La pantalla de asientos es pública y puede no haber usuario, así que Availability pide su propio token con el cliente `availability-service` y lo reutiliza hasta poco antes de que venza. Booking exige que sea de ese cliente: sin token, `401`; con un token de usuario o de otro cliente, `403`. |
 
-Si el Authorization Server no responde, ningún servicio toma el token como inválido: Booking deja que el broker reentregue el mensaje, Payment responde `Unavailable` y Notificaciones, `503`.
+En Booking los dos GET pasan por un filtro (`AutenticacionRestFilter`) que valida el token antes de llegar al controller, con el mismo `IValidadorToken` que usa para los mensajes del broker.
+
+Si el Authorization Server no responde, ningún servicio toma el token como inválido: Booking deja que el broker reentregue el mensaje (o responde `503` en sus GET), Payment responde `Unavailable` y Notificaciones, `503`.
 
 #### Validación de identidad en la reserva (validación delegada)
 
@@ -293,7 +298,7 @@ Hay dos formas: con Visual Studio o con Docker.
 2. Tener SQL Server LocalDB, que viene con Visual Studio. Las bases (Availability, BookingDb, PaymentDb y AuthorizationDb) se crean solas al arrancar cada servicio. El servicio de auditoría usa LiteDB, un archivo local que tampoco hay que crear.
 3. Levantar los servicios. En Visual Studio: clic derecho en la solución → "Configurar proyectos de inicio" → "Varios proyectos de inicio", y marcar Authorization.Server, Payment.Api, Booking.Api, Notifications.Api, AuditLog.Api y Availability.Web con la acción "Iniciar", en ese orden. Authorization Server (`https://localhost:7000`) debe estar levantado antes que los demás: Availability.Web inicia sesión contra él y Booking le valida el token de cada reserva.
 4. Entrar a https://localhost:7056
-5. Opcional, para ver los avisos como mails: levantar Mailpit con `docker run -d --name mailpit -p 1025:1025 -p 8025:8025 axllent/mailpit` y cargar en Notifications.Api `dotnet user-secrets set "Smtp:Host" "localhost"`. Los mails se ven en http://localhost:8025. Sin `Smtp:Host` el envío queda simulado en el log.
+5. Opcional, para ver los avisos como mails: levantar Mailpit con `docker run -d --name mailpit -p 1025:1025 -p 8025:8025 axllent/mailpit` y cargar en Notifications.Api `dotnet user-secrets set "Smtp:Host" "localhost"`. Los mails se ven en http://localhost:8025. Sin `Smtp:Host` el envío queda simulado en el log. Si el contenedor de Mailpit ya existe de antes, se prende con `docker start mailpit`. Si antes se levantó todo con Docker, correr `docker compose down` primero: usan los mismos puertos.
 
 Puertos de cada servicio:
 
@@ -306,7 +311,7 @@ Puertos de cada servicio:
 | Authorization Server | 7000 | 7001 |
 | Servicio de auditoría | - | 5305 |
 
-Booking llama a Payment por gRPC en `http://localhost:5087`.
+Booking llama a Payment por gRPC en `http://localhost:5087`. Availability llama a Booking por HTTP en `http://localhost:5295`. Booking no redirige de HTTP a HTTPS a propósito: es una API interna y, al seguir una redirección, .NET descarta el header `Authorization`, así que el token no llegaría.
 
 ### Con Docker
 
