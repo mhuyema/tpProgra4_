@@ -18,3 +18,11 @@ Herramienta: Claude Code.
 ## Autenticación entre microservicios (commit `5c4c0ba`)
 
 6. Tenemos que enviar el token de autenticación en las llamadas a otros microservicios desde Availability. Incluilo como Bearer en las consultas de `IConsultaReservas`.
+
+## Error 401 al consultar asientos ocupados
+
+7. (Adjunto captura del error: `401 Unauthorized` en `EnsureSuccessStatusCode` al consultar los asientos ocupados en `BookingService`).
+
+8. ¿Me dijiste que en Docker no debería pasar? ¿Lo probamos en Docker?
+
+9. Saquemos el método `app.UseHttpsRedirection()`.
