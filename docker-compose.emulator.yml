@@ -1,0 +1,74 @@
+# Broker local para la demo, sin Azure: reemplaza el Service Bus de la nube por el emulador oficial.
+# Se usa sumándolo al compose principal:
+#   docker compose -f docker-compose.yml -f docker-compose.emulator.yml up --build
+# El topic "grupo9" y sus 4 suscripciones (booking, auditlog, notificaciones-creada y notificaciones-confirmada)
+# se crean solos desde emulator/Config.json. El emulador no tiene API de administración: las entidades
+# solo se definen en ese archivo.
+# Ojo: el compose principal exige que SERVICEBUS_CONNECTION_STRING exista en el .env (aunque sea cualquier valor);
+# acá se pisa con la cadena del emulador.
+
+services:
+  servicebus-emulator:
+    image: mcr.microsoft.com/azure-messaging/servicebus-emulator:latest
+    environment:
+      ACCEPT_EULA: "Y"
+      # El emulador guarda su estado en el mismo SQL Server del compose.
+      SQL_SERVER: sqlserver
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD:?definir SA_PASSWORD en .env}
+    volumes:
+      - ./emulator/Config.json:/ServiceBus_Emulator/ConfigFiles/Config.json
+    ports:
+      - "5672:5672" # AMQP
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+
+  # La imagen del emulador no trae shell (no admite healthcheck propio): este servicio espera a que
+  # su endpoint de salud responda y recién ahí deja arrancar al resto.
+  broker-ready:
+    image: alpine:3.20
+    command: sh -c "until wget -q -O /dev/null http://servicebus-emulator:5300/health; do sleep 2; done"
+    depends_on:
+      - servicebus-emulator
+
+  auditlog:
+    environment:
+      SERVICEBUS_CONNECTION_STRING: "Endpoint=sb://servicebus-emulator;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+    depends_on:
+      broker-ready:
+        condition: service_completed_successfully
+
+  payment:
+    environment:
+      SERVICEBUS_CONNECTION_STRING: "Endpoint=sb://servicebus-emulator;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+    depends_on:
+      broker-ready:
+        condition: service_completed_successfully
+
+  booking:
+    environment:
+      SERVICEBUS_CONNECTION_STRING: "Endpoint=sb://servicebus-emulator;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+    depends_on:
+      broker-ready:
+        condition: service_completed_successfully
+
+  availability:
+    environment:
+      SERVICEBUS_CONNECTION_STRING: "Endpoint=sb://servicebus-emulator;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+    depends_on:
+      broker-ready:
+        condition: service_completed_successfully
+
+  authorization:
+    environment:
+      SERVICEBUS_CONNECTION_STRING: "Endpoint=sb://servicebus-emulator;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+    depends_on:
+      broker-ready:
+        condition: service_completed_successfully
+
+  notifications:
+    environment:
+      SERVICEBUS_CONNECTION_STRING: "Endpoint=sb://servicebus-emulator;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+    depends_on:
+      broker-ready:
+        condition: service_completed_successfully
